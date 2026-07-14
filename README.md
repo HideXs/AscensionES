@@ -35,8 +35,12 @@ Addon que traduce al **español de España** el contenido de [Ascension WoW](htt
 - Panel de opciones: **Interfaz → AddOns → AscensionES** (activa/desactiva cada módulo).
 - Comando `/ases` en el chat: `hechizos`, `objetos`, `logros`, `interfaz`, `chat`, `errores`, `voz`, `refrescar`…
 
+## 🐛 ¿Has visto un error de traducción?
+
+Abre una [Issue con el formulario de errores](../../issues/new/choose): te pedirá el nombre exacto, dónde aparece y una captura. Las correcciones se incorporan en la siguiente versión.
+
 ## 🖋️ Autoría
 
-Traducción y addon creados por **HideXs** (2026). Cada release legítima incluye una firma de autoría verificable (v1.0.1: `AES/2026-07-14/21f5781ec8f437c7/HideXs`); desconfía de copias que no la lleven.
+Traducción y addon creados por **HideXs** (2026). Cada release legítima incluye una firma de autoría verificable (v1.0.1a: `AES/2026-07-14/ab1acdbb75d06b3b/HideXs`); desconfía de copias que no la lleven.
 
 © 2026 HideXs — todos los derechos reservados sobre la traducción y el código del addon. No redistribuir versiones modificadas sin permiso. World of Warcraft® es una marca de Blizzard Entertainment; Ascension es un proyecto independiente de terceros.

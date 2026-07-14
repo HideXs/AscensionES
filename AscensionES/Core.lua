@@ -386,6 +386,37 @@ local function TranslateTooltipLines(tip)
                     return "Genera " .. n .. " " .. (TranslateSpellWord(res) or res)
                 end)
 
+                new = new:gsub("Restores (%d+) health over (%d+) sec%.", "Restaura %1 p. de salud durante %2 s.")
+                new = new:gsub("Restores (%d+) mana over (%d+) sec%.", "Restaura %1 p. de man\195\161 durante %2 s.")
+                new = new:gsub("Must remain seated while eating%.", "Debes permanecer sentado mientras comes.")
+                new = new:gsub("Must remain seated while drinking%.", "Debes permanecer sentado mientras bebes.")
+                new = new:gsub("If you spend at least (%d+) seconds eating you will become well fed and gain (%d+) (%a+) and (%a+) for (%d+) min%.",
+                    function(s, v, st1, st2, m)
+                        local SW = { Stamina = "aguante", Spirit = "esp\195\173ritu", Intellect = "intelecto",
+                                     Strength = "fuerza", Agility = "agilidad" }
+                        return "Si pasas al menos " .. s .. " s comiendo, quedar\195\161s bien alimentado y obtendr\195\161s "
+                            .. v .. " p. de " .. (SW[st1] or TranslateSpellWord(st1) or st1)
+                            .. " y " .. (SW[st2] or TranslateSpellWord(st2) or st2) .. " durante " .. m .. " min."
+                    end)
+
+                local function teachRepl(verb)
+                    return function(thing)
+                        local es = AES.SpellNameEN2ES[thing] or (AES.ItemNameEN2ES and AES.ItemNameEN2ES[thing]) or thing
+                        return "Te ense\195\177a a " .. verb .. " " .. es .. "."
+                    end
+                end
+                new = new:gsub("Teaches you how to cook a delicious (.-)%.", teachRepl("cocinar"))
+                new = new:gsub("Teaches you how to (%a+) (.-)%.", function(verb, thing)
+                    local V = { cook = "cocinar", make = "fabricar", craft = "crear",
+                                brew = "elaborar", sew = "coser", smelt = "fundir",
+                                forge = "forjar", mix = "mezclar", create = "crear",
+                                conjure = "conjurar", cut = "tallar", inscribe = "inscribir",
+                                engrave = "grabar", transmute = "transmutar", summon = "invocar" }
+                    local v = V[verb]
+                    if not v then return nil end
+                    return teachRepl(v)(thing)
+                end)
+
                 new = new:gsub("Rank (%d+)/(%d+)", "Rango %1/%2")
                 new = new:gsub("Level: (%d+)", "Nivel: %1")
                 new = new:gsub("Lasts (%d+) sec?,? ?stacking (%d+) times", "Dura %1 s, acumul\195\161ndose %2 veces")
@@ -407,9 +438,16 @@ local function TranslateTooltipLines(tip)
                     for raw in list:gmatch("[^,]+") do
                         local w = raw:match("^%s*(.-)%s*$")
                         local lvl = w:match("^[Ll]evel (%d+)$")
-                        parts[#parts + 1] = (lvl and ("nivel " .. lvl))
-                            or (AES.WeaponWords and AES.WeaponWords[w])
-                            or TranslateSpellWord(w) or w
+
+                        local base, qty = w:match("^(.-)%s*%((%d+)%)$")
+                        local core = base or w
+                        local es = (lvl and ("nivel " .. lvl))
+                            or (AES.ProfessionWords and AES.ProfessionWords[core])
+                            or (AES.WeaponWords and AES.WeaponWords[core])
+                            or TranslateSpellWord(core)
+                            or (AES.ItemNameEN2ES and AES.ItemNameEN2ES[core])
+                            or core
+                        parts[#parts + 1] = es .. (qty and (" (" .. qty .. ")") or "")
                     end
                     return "Requiere " .. table.concat(parts, ", ")
                 end)
@@ -564,8 +602,17 @@ local function OnItemTooltip(tip)
         local L1 = _G[name .. "TextLeft1"]
         local text = L1 and L1:GetText()
         local guard = AES.ItemNameEN[itemID]
-        if text and text ~= "" and (not guard or guard == text) then
-            L1:SetText(AES.ItemName[itemID])
+        if text and text ~= "" then
+            if (not guard) or guard == text then
+                L1:SetText(AES.ItemName[itemID])
+            elseif text:sub(1, #guard) == guard then
+
+                local suf = text:sub(#guard + 1):match("^%s+(.-)%s*$")
+                local sufES = suf and AES.SuffixWords and AES.SuffixWords[suf]
+                if sufES then
+                    L1:SetText(AES.ItemName[itemID] .. " " .. sufES)
+                end
+            end
         end
     end
 
@@ -934,6 +981,101 @@ local function HookTrainerUI()
     end
 end
 
+local function TradeSkillWord(t)
+    return AES.SpellNameEN2ES[t]
+        or (AES.ItemNameEN2ES and AES.ItemNameEN2ES[t])
+        or (AES.CustomUI and AES.CustomUI[t])
+        or (AES.UIStringsByEN and AES.UIStringsByEN[t])
+end
+
+local function TranslateTradeSkillFrame()
+
+    local title = _G["TradeSkillFrameTitleText"]
+    local tt = title and title.GetText and title:GetText()
+    if tt then
+        local es = (AES.ProfessionWords and AES.ProfessionWords[tt]) or TradeSkillWord(tt)
+        if es then pcall(title.SetText, title, es) end
+    end
+
+    for i = 1, 30 do
+        local b = _G["TradeSkillSkill" .. i]
+        if b and b.GetText then
+            local t = b:GetText()
+            if t and t ~= "" then
+                local base, count = t:match("^(.-)%s*(%[%d+%])$")
+                base = base or t
+                local es = TradeSkillWord(base)
+                if es then pcall(b.SetText, b, es .. (count and (" " .. count) or "")) end
+            end
+        end
+    end
+end
+
+local function TranslateTradeSkillDetail()
+    local nameFS = _G["TradeSkillSkillName"]
+    local en = nameFS and nameFS.GetText and nameFS:GetText()
+    if en then
+        local es = TradeSkillWord(en)
+        if es then pcall(nameFS.SetText, nameFS, es) end
+    end
+
+    local descFS = _G["TradeSkillDescription"]
+    local dt = descFS and descFS.GetText and descFS:GetText()
+    if dt and dt ~= "" and en then
+        local ids = AES.NameToIDs[en]
+        if ids then
+            for _, id in ipairs(ids) do
+                if (AES.DescByID[id] and TryPairSet(descFS, dt, AES.DescByID[id], AES.DescPairs))
+                    or (AES.TipByID[id] and TryPairSet(descFS, dt, AES.TipByID[id], AES.TipPairs)) then
+                    break
+                end
+            end
+        end
+    end
+
+    local reqFS = _G["TradeSkillRequirementText"]
+    local rt = reqFS and reqFS.GetText and reqFS:GetText()
+    if rt and rt ~= "" then
+        local new = rt:gsub("^Requires:%s*(.+)$", function(st)
+            return "Requiere: " .. (TradeSkillWord(st) or st)
+        end)
+        if new ~= rt then pcall(reqFS.SetText, reqFS, new) end
+    end
+    local lbl = _G["TradeSkillReagentLabel"]
+    if lbl and lbl.GetText and lbl:GetText() == "Reagents:" then
+        pcall(lbl.SetText, lbl, "Reactivos:")
+    end
+    for i = 1, 8 do
+        local fs = _G["TradeSkillReagent" .. i .. "Name"]
+        local t = fs and fs.GetText and fs:GetText()
+        if t and t ~= "" then
+            local es = TradeSkillWord(t)
+            if es then pcall(fs.SetText, fs, es) end
+        end
+    end
+end
+
+local function HookTradeSkillUI()
+    if type(TradeSkillFrame_Update) ~= "function" then return end
+    hooksecurefunc("TradeSkillFrame_Update", function()
+        if db and db.spells then
+            TranslateTradeSkillFrame()
+            TranslateTradeSkillDetail()
+        end
+    end)
+    if type(TradeSkillFrame_SetSelection) == "function" then
+        hooksecurefunc("TradeSkillFrame_SetSelection", function()
+            if db and db.spells then TranslateTradeSkillDetail() end
+        end)
+    end
+    if TradeSkillFrame and TradeSkillFrame.HookScript and TradeSkillFrame:HasScript("OnShow") then
+        TradeSkillFrame:HookScript("OnShow", RetranslateStaticUI)
+    end
+end
+
+AES.TranslateTradeSkillFrame = TranslateTradeSkillFrame
+AES.TranslateTradeSkillDetail = TranslateTradeSkillDetail
+
 local function HookTooltip(tip)
     if not tip then return end
     if tip:HasScript("OnTooltipSetSpell") then
@@ -1046,6 +1188,16 @@ frame:SetScript("OnEvent", function(self, event, arg1)
     for k, v in pairs(defaults) do
         if db[k] == nil then db[k] = v end
     end
+
+    AES.ItemNameEN2ES = {}
+    for id, en in pairs(AES.ItemNameEN or {}) do
+        local es = AES.ItemName[id]
+        if es and AES.ItemNameEN2ES[en] == nil then
+            AES.ItemNameEN2ES[en] = es
+        elseif es and AES.ItemNameEN2ES[en] ~= es then
+            AES.ItemNameEN2ES[en] = false
+        end
+    end
     if not db._v or db._v < 2 then
         db.units = false
         db._v = 2
@@ -1072,6 +1224,9 @@ frame:SetScript("OnEvent", function(self, event, arg1)
     if IsAddOnLoaded and IsAddOnLoaded("Blizzard_TrainerUI") then
         HookTrainerUI()
     end
+    if IsAddOnLoaded and IsAddOnLoaded("Blizzard_TradeSkillUI") then
+        HookTradeSkillUI()
+    end
     local waiter = CreateFrame("Frame")
     waiter:RegisterEvent("ADDON_LOADED")
     waiter:SetScript("OnEvent", function(w, _, name)
@@ -1079,6 +1234,8 @@ frame:SetScript("OnEvent", function(self, event, arg1)
             HookAchievementUI()
         elseif name == "Blizzard_TrainerUI" then
             HookTrainerUI()
+        elseif name == "Blizzard_TradeSkillUI" then
+            HookTradeSkillUI()
         end
     end)
 
@@ -1204,4 +1361,4 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         status(db.achievements), status(db.ui)))
 end
 
-AscensionES.__firma = "AES/2026-07-14/21f5781ec8f437c7/HideXs"
+AscensionES.__firma = "AES/2026-07-14/ab1acdbb75d06b3b/HideXs"

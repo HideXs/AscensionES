@@ -108,6 +108,16 @@ AscensionES.LinePatterns = {
     { "^%+(%d+) Block Rating$", "+%1 de índice de bloqueo" },
     { "^%+(%d+) Block Value$", "+%1 de valor de bloqueo" },
     { "^%+(%d+) Armor Penetration Rating$", "+%1 de índice de penetración de armadura" },
+    { "^%+(%d+) Spell Healing$", "+%1 de sanación con hechizos" },
+    { "^%+(%d+) Healing Power$", "+%1 de poder de sanación" },
+    { "^%+(%d+) Spell Damage$", "+%1 de daño con hechizos" },
+    { "^%+(%d+) Spell Damage and Healing$", "+%1 de daño y sanación con hechizos" },
+    { "^%+(%d+) Fire Spell Damage$", "+%1 de daño de hechizos de Fuego" },
+    { "^%+(%d+) Frost Spell Damage$", "+%1 de daño de hechizos de Escarcha" },
+    { "^%+(%d+) Nature Spell Damage$", "+%1 de daño de hechizos de Naturaleza" },
+    { "^%+(%d+) Shadow Spell Damage$", "+%1 de daño de hechizos de las Sombras" },
+    { "^%+(%d+) Arcane Spell Damage$", "+%1 de daño de hechizos Arcanos" },
+    { "^%+(%d+) Holy Spell Damage$", "+%1 de daño de hechizos Sagrados" },
     { "^%+(%d+) Armor$", "+%1 de armadura" },
     { "^%+(%d+) [Mm]ana [Ee]very 5 [Ss]ec%.?$", "+%1 de maná cada 5 s" },
     { "^%+(%d+) [Mm]ana [Pp]er 5 [Ss]ec%.?$", "+%1 de maná cada 5 s" },
@@ -164,6 +174,8 @@ AscensionES.LinePatterns = {
     { "^Herb$", "Hierba" },
     { "^Corpse of (.+)$", "Cadáver de %1" },
     { "^Bags: (%d+)$", "Bolsas: %1" },
+    { "^Bank: (%d+)$", "Banco: %1" },
+    { "^Equipped: (%d+)$", "Equipado: %1" },
     { "^%((%d+) Min Cooldown%)$", "(%1 min de reutilización)" },
     { "^%((%d+) Sec Cooldown%)$", "(%1 s de reutilización)" },
 }
@@ -191,6 +203,41 @@ AscensionES.WeaponWords = {
     ["One-Handed Melee Weapon"] = "un arma cuerpo a cuerpo de una mano",
     ["Two-Handed Melee Weapon"] = "un arma cuerpo a cuerpo de dos manos",
     ["Fishing Pole"] = "caña de pescar",
+}
+
+AscensionES.ProfessionWords = {
+    ["Cooking"] = "Cocina", ["First Aid"] = "Primeros auxilios", ["Fishing"] = "Pesca",
+    ["Alchemy"] = "Alquimia", ["Blacksmithing"] = "Herrería", ["Enchanting"] = "Encantamiento",
+    ["Engineering"] = "Ingeniería", ["Herbalism"] = "Herboristería",
+    ["Jewelcrafting"] = "Joyería", ["Leatherworking"] = "Peletería", ["Mining"] = "Minería",
+    ["Skinning"] = "Desuello", ["Tailoring"] = "Sastrería", ["Inscription"] = "Inscripción",
+    ["Riding"] = "Equitación", ["Runeforging"] = "Forja de runas",
+}
+
+AscensionES.SuffixWords = {
+    ["of the Bear"] = "del Oso", ["of the Eagle"] = "del Águila",
+    ["of the Whale"] = "de la Ballena", ["of the Owl"] = "del Búho",
+    ["of the Monkey"] = "del Mono", ["of the Falcon"] = "del Halcón",
+    ["of the Boar"] = "del Jabalí", ["of the Gorilla"] = "del Gorila",
+    ["of the Tiger"] = "del Tigre", ["of the Wolf"] = "del Lobo",
+    ["of the Bandit"] = "del Bandido", ["of the Beast"] = "de la Bestia",
+    ["of the Elder"] = "del Anciano", ["of the Soldier"] = "del Soldado",
+    ["of the Champion"] = "del Campeón", ["of the Grove"] = "de la Arboleda",
+    ["of the Hunt"] = "de la Caza", ["of the Mind"] = "de la Mente",
+    ["of the Sorcerer"] = "del Hechicero", ["of the Physician"] = "del Médico",
+    ["of the Prophet"] = "del Profeta", ["of the Invoker"] = "del Invocador",
+    ["of the Crusade"] = "de la Cruzada", ["of the Nightmare"] = "de la Pesadilla",
+    ["of Power"] = "de poder", ["of Spirit"] = "de espíritu",
+    ["of Stamina"] = "de aguante", ["of Intellect"] = "de intelecto",
+    ["of Strength"] = "de fuerza", ["of Agility"] = "de agilidad",
+    ["of Defense"] = "de defensa", ["of Regeneration"] = "de regeneración",
+    ["of Concentration"] = "de concentración", ["of Healing"] = "de sanación",
+    ["of Marksmanship"] = "de puntería", ["of Eluding"] = "de elusión",
+    ["of Arcane Wrath"] = "de cólera Arcana", ["of Fiery Wrath"] = "de cólera de Fuego",
+    ["of Frozen Wrath"] = "de cólera de Escarcha", ["of Holy Wrath"] = "de cólera Sagrada",
+    ["of Nature's Wrath"] = "de cólera de la Naturaleza", ["of Shadow Wrath"] = "de cólera de las Sombras",
+    ["of Nature's Grace"] = "de la gracia de la Naturaleza",
+    ["of Spell Power"] = "de poder con hechizos", ["of Attack Power"] = "de poder de ataque",
 }
 
 AscensionES.ValueWords = {

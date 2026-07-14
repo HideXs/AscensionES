@@ -1,0 +1,45 @@
+name: 🐛 Error de traducción
+description: Reporta un texto mal traducido o que sigue en inglés
+title: "[Traducción] "
+labels: ["bug"]
+body:
+  - type: input
+    id: nombre
+    attributes:
+      label: Nombre exacto
+      description: Nombre del hechizo, talento, objeto o logro afectado, tal como sale en el juego
+      placeholder: "p. ej. Disparo rápido / Quick Shot"
+    validations:
+      required: true
+  - type: dropdown
+    id: lugar
+    attributes:
+      label: ¿Dónde aparece?
+      options:
+        - Tooltip de hechizo o talento
+        - Tooltip de objeto
+        - Libro de hechizos / entrenador
+        - Ventana de profesiones
+        - Logros
+        - Chat / mensajes del sistema
+        - Interfaz (menús, botones, opciones...)
+        - Otro
+    validations:
+      required: true
+  - type: textarea
+    id: texto
+    attributes:
+      label: ¿Qué texto sale mal?
+      description: Copia el texto incorrecto o en inglés. Si sabes cómo debería quedar, indícalo también.
+    validations:
+      required: true
+  - type: textarea
+    id: captura
+    attributes:
+      label: Captura de pantalla
+      description: Arrastra aquí una imagen del texto en el juego (muy recomendable)
+  - type: input
+    id: version
+    attributes:
+      label: Versión del addon
+      placeholder: "1.0.1a"

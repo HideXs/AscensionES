@@ -2,7 +2,7 @@
 ## Title: AscensionES |cff33ff99español|r
 ## Notes: Traducción al español de hechizos, talentos, objetos y NPCs para Ascension (Conquest of Azeroth)
 ## Author: HideXs
-## Version: 1.0.1
+## Version: 1.0.1a
 ## SavedVariables: AscensionESDB
 
 data\Patterns.lua
