@@ -12,6 +12,9 @@ AES.ItemName       = AES.ItemName or {}
 AES.ItemNameEN     = AES.ItemNameEN or {}
 AES.ItemDesc       = AES.ItemDesc or {}
 AES.ItemDescEN     = AES.ItemDescEN or {}
+AES.QuestTitle     = AES.QuestTitle or {}
+AES.QuestTitleEN   = AES.QuestTitleEN or {}
+AES.QuestData      = AES.QuestData or {}
 AES.UnitName       = AES.UnitName or {}
 AES.UnitNameEN     = AES.UnitNameEN or {}
 AES.UnitSub        = AES.UnitSub or {}
@@ -29,7 +32,7 @@ AES.AchRewardEN    = AES.AchRewardEN or {}
 local db
 
 local defaults = { spells = true, items = true, units = false, patterns = true, flavor = true,
-                   ui = true, achievements = true }
+                   ui = true, achievements = true, quests = true }
 
 local function TranslateValue(v)
     local w = AES.ValueWords
@@ -1110,6 +1113,7 @@ local OPTIONS_LIST = {
     { key = "items", text = "Objetos (nombres)" },
     { key = "flavor", text = "Texto ambiental de objetos (la cita amarilla)" },
     { key = "units", text = "Nombres de NPC (mejor apagado: las misiones los citan en inglés)" },
+    { key = "quests", text = "Misiones (descripción, objetivos, progreso y entrega)" },
     { key = "achievements", text = "Logros" },
     { key = "patterns", text = "Líneas genéricas de tooltip (coste, alcance, rangos...)" },
     { key = "ui", text = "Interfaz y menús (los cambios requieren /reload)" },
@@ -1170,6 +1174,137 @@ local function BuildOptionsPanel()
 
     InterfaceOptions_AddCategory(panel)
 end
+
+local QUEST_CLASS_ES = {
+    Warrior = "Guerrero", Paladin = "Paladín", Hunter = "Cazador", Rogue = "Pícaro",
+    Priest = "Sacerdote", ["Death Knight"] = "Caballero de la Muerte", Shaman = "Chamán",
+    Mage = "Mago", Warlock = "Brujo", Druid = "Druida",
+}
+local QUEST_RACE_ES = {
+    Human = "Humano", Dwarf = "Enano", ["Night Elf"] = "Elfo de la noche", Gnome = "Gnomo",
+    Draenei = "Draenei", Orc = "Orco", Undead = "No-muerto", Tauren = "Tauren",
+    Troll = "Trol", ["Blood Elf"] = "Elfo de sangre",
+}
+
+local function CollapseWS(t)
+    t = t:gsub("%s+", " ")
+    return (t:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+local function QuestNormalizeShown(t)
+    t = t:gsub("\r", "")
+    local n = UnitName and UnitName("player")
+    if n and #n > 1 then t = t:gsub(n, "<name>") end
+    local c = UnitClass and UnitClass("player")
+    if c then
+        t = t:gsub(c, "<class>")
+        t = t:gsub(c:lower(), "<class>")
+    end
+    local r = UnitRace and UnitRace("player")
+    if r then
+        t = t:gsub(r, "<race>")
+        t = t:gsub(r:lower(), "<race>")
+    end
+    return CollapseWS(t)
+end
+
+local function QuestRenderES(t)
+    local male = not (UnitSex and UnitSex("player") == 3)
+    t = t:gsub("%$[Gg]([^:;]*):([^;]*);", function(m, f) return male and m or f end)
+    local name = (UnitName and UnitName("player")) or "aventurero"
+    local c = UnitClass and UnitClass("player")
+    local cES = (c and QUEST_CLASS_ES[c]) or "aventurero"
+    local r = UnitRace and UnitRace("player")
+    local rES = (r and QUEST_RACE_ES[r]) or ""
+    t = t:gsub("%$[Nn]", name):gsub("%$[Cc]", cES):gsub("%$[Rr]", rES)
+
+    t = t:gsub("<name>", name):gsub("<class>", cES):gsub("<race>", rES)
+    return t
+end
+
+local function QuestGuardSet(fs, es, en)
+    if not (fs and es and en) then return end
+    local shown = fs.GetText and fs:GetText()
+    if not shown or shown == "" then return end
+    if QuestNormalizeShown(shown) ~= CollapseWS(en:gsub("\r", "")) then return end
+    pcall(fs.SetText, fs, QuestRenderES(es))
+end
+
+local function TranslateQuestInfo()
+    if not (db and db.quests) then return end
+    local id
+    if QuestInfoFrame and QuestInfoFrame.questLog then
+        local sel = GetQuestLogSelection and GetQuestLogSelection()
+        if sel and sel > 0 and GetQuestLogTitle then
+            id = select(9, GetQuestLogTitle(sel))
+        end
+    elseif GetQuestID then
+        id = GetQuestID()
+    end
+    id = tonumber(id)
+    if not id or id == 0 then return end
+    local es_t = AES.QuestTitle[id]
+    if es_t then
+        QuestGuardSet(_G["QuestInfoTitleHeader"], es_t, AES.QuestTitleEN[id])
+    end
+    local qd = AES.QuestData[id]
+    if not qd then return end
+    QuestGuardSet(_G["QuestInfoDescriptionText"], qd.d, qd.dEN)
+    QuestGuardSet(_G["QuestInfoObjectivesText"], qd.o, qd.oEN)
+    QuestGuardSet(_G["QuestInfoRewardText"], qd.c, qd.cEN)
+end
+
+local function TranslateQuestProgress()
+    if not (db and db.quests) then return end
+    local id = GetQuestID and tonumber(GetQuestID())
+    if not id or id == 0 then return end
+    local es_t = AES.QuestTitle[id]
+    if es_t then
+        QuestGuardSet(_G["QuestProgressTitleText"], es_t, AES.QuestTitleEN[id])
+    end
+    local qd = AES.QuestData[id]
+    if qd then
+        QuestGuardSet(_G["QuestProgressText"], qd.p, qd.pEN)
+    end
+end
+
+local function TranslateQuestButtons(prefix, count)
+    if not (db and db.quests and AES.QuestTitleEN2ES) then return end
+    for i = 1, count do
+        local b = _G[prefix .. i]
+        if b and b.GetText then
+            local t = b:GetText()
+            local es = t and AES.QuestTitleEN2ES[t]
+            if es then pcall(b.SetText, b, es) end
+        end
+    end
+end
+
+local questFrame = CreateFrame("Frame")
+questFrame:RegisterEvent("QUEST_DETAIL")
+questFrame:RegisterEvent("QUEST_PROGRESS")
+questFrame:RegisterEvent("QUEST_COMPLETE")
+questFrame:RegisterEvent("QUEST_GREETING")
+questFrame:SetScript("OnEvent", function(self, event)
+    if event == "QUEST_PROGRESS" then
+        TranslateQuestProgress()
+    elseif event == "QUEST_GREETING" then
+        TranslateQuestButtons("QuestTitleButton", 32)
+    else
+        TranslateQuestInfo()
+    end
+end)
+if type(QuestInfo_Display) == "function" then
+    hooksecurefunc("QuestInfo_Display", TranslateQuestInfo)
+end
+if type(GossipFrameUpdate) == "function" then
+    hooksecurefunc("GossipFrameUpdate", function()
+        TranslateQuestButtons("GossipTitleButton", 32)
+    end)
+end
+
+AES.TranslateQuestInfo = TranslateQuestInfo
+AES.TranslateQuestProgress = TranslateQuestProgress
 
 local UPDATE_PREFIX = "AESver"
 local myVersionStr = (GetAddOnMetadata and GetAddOnMetadata("AscensionES", "Version")) or "0.0.0"
@@ -1257,6 +1392,16 @@ frame:SetScript("OnEvent", function(self, event, arg1)
             AES.ItemNameEN2ES[en] = false
         end
     end
+
+    AES.QuestTitleEN2ES = {}
+    for id, en in pairs(AES.QuestTitleEN or {}) do
+        local es = AES.QuestTitle[id]
+        if es and AES.QuestTitleEN2ES[en] == nil then
+            AES.QuestTitleEN2ES[en] = es
+        elseif es and AES.QuestTitleEN2ES[en] ~= es then
+            AES.QuestTitleEN2ES[en] = false
+        end
+    end
     if not db._v or db._v < 2 then
         db.units = false
         db._v = 2
@@ -1323,6 +1468,10 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         db.flavor = not db.flavor
     elseif msg == "logros" or msg == "achievements" then
         db.achievements = not db.achievements
+    elseif msg == "misiones" or msg == "quests" then
+        db.quests = not db.quests
+        DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r misiones en español: " .. status(db.quests))
+        return
     elseif msg == "interfaz" or msg == "ui" then
         db.ui = not db.ui
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r interfaz cambiada: haz /reload para aplicar")
@@ -1415,9 +1564,9 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         return
     end
     DEFAULT_CHAT_FRAME:AddMessage(format(
-        "|cff33ff99AscensionES|r hechizos:%s objetos:%s npcs:%s líneas:%s ambiental:%s logros:%s interfaz:%s",
+        "|cff33ff99AscensionES|r hechizos:%s objetos:%s npcs:%s líneas:%s ambiental:%s misiones:%s logros:%s interfaz:%s",
         status(db.spells), status(db.items), status(db.units), status(db.patterns), status(db.flavor),
-        status(db.achievements), status(db.ui)))
+        status(db.quests), status(db.achievements), status(db.ui)))
 end
 
-AscensionES.__firma = "AES/2026-07-14/b3d2972fe691a065/HideXs"
+AscensionES.__firma = "AES/2026-07-15/705096b4da294f40/HideXs"

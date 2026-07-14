@@ -17,8 +17,9 @@ Addon que traduce al **español de España** el contenido de [Ascension WoW](htt
 | Nombres de hechizos y talentos | 67.002 |
 | Descripciones de hechizos/talentos | 160.886 |
 | Tooltips y rangos | 75.453 |
-| Objetos (nombres, descripciones, efectos Equipar/Uso) | 44.609 |
-| Logros (títulos, descripciones, criterios, categorías) | 22.619 |
+| Objetos (nombres, descripciones, efectos Equipar/Uso) | 44.624 |
+| **Misiones** (título, descripción, objetivos y diálogos de progreso/entrega) | 6.110 |
+| Logros (títulos, descripciones, criterios, categorías) | 22.980 |
 | Interfaz custom de Ascension, errores y mensajes de chat/sistema | miles |
 | Voces oficiales en español («No tengo maná…») por raza y género | 1.511 clips |
 
@@ -28,7 +29,7 @@ Addon que traduce al **español de España** el contenido de [Ascension WoW](htt
 
 ## 🚫 Qué NO traduce (por diseño)
 
-- **Misiones** y **nombres de NPC**: las misiones citan los nombres en inglés, y traducirlos rompería la referencia.
+- **Nombres de NPC**: el mundo los muestra en inglés, y las misiones los citan — las traducciones de misión conservan esos nombres tal cual para no romper la referencia.
 
 ## ⚙️ Configuración
 
@@ -41,6 +42,6 @@ Abre una [Issue con el formulario de errores](../../issues/new/choose): te pedir
 
 ## 🖋️ Autoría
 
-Traducción y addon creados por **HideXs** (2026). Cada release legítima incluye una firma de autoría verificable (v1.0.1b: `AES/2026-07-14/b3d2972fe691a065/HideXs`); desconfía de copias que no la lleven.
+Traducción y addon creados por **HideXs** (2026). Cada release legítima incluye una firma de autoría verificable (v1.0.5: `AES/2026-07-15/705096b4da294f40/HideXs`); desconfía de copias que no la lleven.
 
 © 2026 HideXs — todos los derechos reservados sobre la traducción y el código del addon. No redistribuir versiones modificadas sin permiso. World of Warcraft® es una marca de Blizzard Entertainment; Ascension es un proyecto independiente de terceros.
