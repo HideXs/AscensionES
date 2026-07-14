@@ -2,6 +2,8 @@ AscensionES = AscensionES or {}
 
 AscensionES.CustomUI = {
 
+    ["Hold Shift to Compare"] = "Mantén Mayús para comparar",
+
     ["Help / Report Bug"] = "Ayuda / Informar de error",
     ["Join Discord"] = "Unirse al Discord",
     ["Video"] = "Vídeo",

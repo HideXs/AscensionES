@@ -11,6 +11,7 @@ AES.RankEN2ES      = AES.RankEN2ES or {}
 AES.ItemName       = AES.ItemName or {}
 AES.ItemNameEN     = AES.ItemNameEN or {}
 AES.ItemDesc       = AES.ItemDesc or {}
+AES.ItemDescEN     = AES.ItemDescEN or {}
 AES.UnitName       = AES.UnitName or {}
 AES.UnitNameEN     = AES.UnitNameEN or {}
 AES.UnitSub        = AES.UnitSub or {}
@@ -164,6 +165,38 @@ local function TranslateSpellWord(w)
     return map[w] or map[w .. "s"] or (w:sub(-1) == "s" and map[w:sub(1, -2)]) or nil
 end
 
+local function MatchLinePatterns(text)
+    local function apply(s)
+        for _, p in ipairs(AES.LinePatterns) do
+            if p[2] then
+                local rep, n = s:gsub(p[1], p[2])
+                if n > 0 and rep ~= s then return rep end
+            end
+        end
+        return nil
+    end
+    local rep = apply(text)
+    if rep then return rep end
+    local pre, core, post = "", text, ""
+    local peeling = true
+    while peeling do
+        peeling = false
+        local sp, rest = core:match("^(%s+)(.*)$")
+        if sp then pre, core, peeling = pre .. sp, rest, true end
+        local c = core:match("^(|c%x%x%x%x%x%x%x%x)")
+        if c then pre, core, peeling = pre .. c, core:sub(#c + 1), true end
+        local body, spf = core:match("^(.-)(%s+)$")
+        if spf then core, post, peeling = body, spf .. post, true end
+        local bodyR = core:match("^(.-)|r$")
+        if bodyR then core, post, peeling = bodyR, "|r" .. post, true end
+    end
+    if core ~= "" and core ~= text then
+        rep = apply(core)
+        if rep then return pre .. rep .. post end
+    end
+    return nil
+end
+
 local function TranslateMultilineText(text)
     local contexts = {}
     local lines = {}
@@ -194,6 +227,14 @@ local function TranslateMultilineText(text)
             or (nm and AES.NameToIDs[nm] and nm) or nil
         if ctxKey then
             contexts[#contexts + 1] = AES.NameToIDs[ctxKey]
+        end
+
+        if not key then
+            local rep = MatchLinePatterns(l)
+            if rep then
+                l = rep
+                touched = true
+            end
         end
         lines[#lines + 1] = l
     end
@@ -374,14 +415,29 @@ local function TranslateTooltipLines(tip)
                 end)
 
                 do
-                    local pre, rest = new:match("^(Equip: |Use: |Chance on hit: )(.+)$")
+                    local pre, preES
+                    if new:sub(1, 7) == "Equip: " then
+                        pre, preES = "Equip: ", "Equipar: "
+                    elseif new:sub(1, 5) == "Use: " then
+                        pre, preES = "Use: ", "Uso: "
+                    elseif new:sub(1, 15) == "Chance on hit: " then
+                        pre, preES = "Chance on hit: ", "Probabilidad al acertar: "
+                    end
                     if pre and AES.TranslateSystemText then
-                        local tr = AES.TranslateSystemText(rest)
-                        if tr ~= rest then
-                            local preES = (pre == "Equip: " and "Equipar: ")
-                                or (pre == "Use: " and "Uso: ")
-                                or "Probabilidad de golpear: "
-                            new = preES .. tr
+                        local rest = new:sub(#pre + 1)
+
+                        local body, cd = rest:match("^(.-)%s+(%(%d+ %a+%.? Cooldown%))$")
+                        body = body or rest
+                        local tr = AES.TranslateSystemText(body)
+                        local cdES
+                        if cd then
+                            cdES = cd:gsub("%((%d+) Min Cooldown%)", "(Tiempo de reutilizaci\195\179n: %1 min)")
+                            cdES = cdES:gsub("%((%d+) Sec Cooldown%)", "(Tiempo de reutilizaci\195\179n: %1 s)")
+                            cdES = cdES:gsub("%((%d+) Hrs? Cooldown%)", "(Tiempo de reutilizaci\195\179n: %1 h)")
+                            cdES = cdES:gsub("%((%d+) Days? Cooldown%)", "(Tiempo de reutilizaci\195\179n: %1 d)")
+                        end
+                        if tr ~= body or (cdES and cdES ~= cd) then
+                            new = preES .. tr .. (cdES and (" " .. cdES) or "")
                         end
                     end
                 end
@@ -390,15 +446,8 @@ local function TranslateTooltipLines(tip)
                     text = new
                 end
 
-                for _, p in ipairs(AES.LinePatterns) do
-                    if p[2] then
-                        local rep, n = text:gsub(p[1], p[2])
-                        if n > 0 and rep ~= text then
-                            fs:SetText(rep)
-                            break
-                        end
-                    end
-                end
+                local rep = MatchLinePatterns(text)
+                if rep then fs:SetText(rep) end
             end
         end
     end
@@ -408,15 +457,8 @@ local function TranslateTooltipLines(tip)
             local fs = _G[tipName .. "TextRight" .. i]
             local text = fs and fs:GetText()
             if text and text ~= "" then
-                for _, p in ipairs(AES.LinePatterns) do
-                    if p[2] then
-                        local rep, n = text:gsub(p[1], p[2])
-                        if n > 0 and rep ~= text then
-                            fs:SetText(rep)
-                            break
-                        end
-                    end
-                end
+                local rep = MatchLinePatterns(text)
+                if rep then fs:SetText(rep) end
             end
         end
     end
@@ -552,7 +594,10 @@ local function OnItemTooltip(tip)
             local fs = _G[name .. "TextLeft" .. i]
             local text = fs and fs:GetText()
             if text and text:sub(1, 1) == '"' then
-                fs:SetText('"' .. AES.ItemDesc[itemID] .. '"')
+                local en = AES.ItemDescEN[itemID]
+                if (not en) or text == '"' .. en .. '"' then
+                    fs:SetText('"' .. AES.ItemDesc[itemID] .. '"')
+                end
                 break
             end
         end
@@ -594,13 +639,7 @@ end
 local function TranslateShortText(text)
 
     if AES.RankEN2ES[text] then return AES.RankEN2ES[text] end
-    for _, p in ipairs(AES.LinePatterns) do
-        if p[2] then
-            local new, n = text:gsub(p[1], p[2])
-            if n > 0 and new ~= text then return new end
-        end
-    end
-    return nil
+    return MatchLinePatterns(text)
 end
 
 local function TranslateAscensionSpellButtons()
@@ -1014,6 +1053,12 @@ frame:SetScript("OnEvent", function(self, event, arg1)
 
     HookTooltip(GameTooltip)
     HookTooltip(ItemRefTooltip)
+
+    HookTooltip(ShoppingTooltip1)
+    HookTooltip(ShoppingTooltip2)
+    HookTooltip(ShoppingTooltip3)
+    HookTooltip(ItemRefShoppingTooltip1)
+    HookTooltip(ItemRefShoppingTooltip2)
     HookAuras()
     HookSpellbook()
     HookAchievementAlerts()
@@ -1137,6 +1182,9 @@ SlashCmdList["ASCENSIONES"] = function(msg)
                                     f = f.GetParent and f:GetParent()
                                 end
                                 DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AES sonda|r " .. found .. ": " .. table.concat(chain, " < "))
+                                local shown = t:gsub("|", "||"):gsub("\n", "\\n"):gsub("\r", "\\r")
+                                if #shown > 150 then shown = shown:sub(1, 150) .. "..." end
+                                DEFAULT_CHAT_FRAME:AddMessage("    texto crudo: [" .. shown .. "]")
                             end
                         end
                     end
@@ -1156,4 +1204,4 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         status(db.achievements), status(db.ui)))
 end
 
-AscensionES.__firma = "AES/2026-07-14/d2560dd51678eb30/HideXs"
+AscensionES.__firma = "AES/2026-07-14/21f5781ec8f437c7/HideXs"
