@@ -41,6 +41,6 @@ Abre una [Issue con el formulario de errores](../../issues/new/choose): te pedir
 
 ## 🖋️ Autoría
 
-Traducción y addon creados por **HideXs** (2026). Cada release legítima incluye una firma de autoría verificable (v1.0.1a: `AES/2026-07-14/ab1acdbb75d06b3b/HideXs`); desconfía de copias que no la lleven.
+Traducción y addon creados por **HideXs** (2026). Cada release legítima incluye una firma de autoría verificable (v1.0.1b: `AES/2026-07-14/b3d2972fe691a065/HideXs`); desconfía de copias que no la lleven.
 
 © 2026 HideXs — todos los derechos reservados sobre la traducción y el código del addon. No redistribuir versiones modificadas sin permiso. World of Warcraft® es una marca de Blizzard Entertainment; Ascension es un proyecto independiente de terceros.

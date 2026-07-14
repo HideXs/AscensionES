@@ -1171,6 +1171,65 @@ local function BuildOptionsPanel()
     InterfaceOptions_AddCategory(panel)
 end
 
+local UPDATE_PREFIX = "AESver"
+local myVersionStr = (GetAddOnMetadata and GetAddOnMetadata("AscensionES", "Version")) or "0.0.0"
+
+local function VersionScore(s)
+    local a, b, c, suf = s:match("^(%d+)%.(%d+)%.(%d+)(%a?)$")
+    if not a then return nil end
+    return tonumber(a) * 1000000 + tonumber(b) * 10000 + tonumber(c) * 100
+        + (suf ~= "" and (suf:lower():byte() - 96) or 0)
+end
+
+local myScore = VersionScore(myVersionStr) or 0
+local notifiedScore = 0
+local lastSent = {}
+local REBROADCAST_CHANNELS = { PARTY = true, RAID = true, GUILD = true, BATTLEGROUND = true }
+
+local function BroadcastVersion(chan)
+    if not SendAddonMessage then return end
+    local now = GetTime()
+    if lastSent[chan] and now - lastSent[chan] < 30 then return end
+    lastSent[chan] = now
+    SendAddonMessage(UPDATE_PREFIX, "V:" .. myVersionStr, chan)
+end
+
+local function BroadcastAll()
+    if GetNumRaidMembers and GetNumRaidMembers() > 0 then
+        BroadcastVersion("RAID")
+    elseif GetNumPartyMembers and GetNumPartyMembers() > 0 then
+        BroadcastVersion("PARTY")
+    end
+    if IsInGuild and IsInGuild() then
+        BroadcastVersion("GUILD")
+    end
+end
+
+local updFrame = CreateFrame("Frame")
+updFrame:RegisterEvent("CHAT_MSG_ADDON")
+updFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+updFrame:RegisterEvent("PARTY_MEMBERS_CHANGED")
+updFrame:RegisterEvent("RAID_ROSTER_UPDATE")
+updFrame:SetScript("OnEvent", function(self, event, prefix, msg, channel)
+    if event ~= "CHAT_MSG_ADDON" then
+        BroadcastAll()
+        return
+    end
+    if prefix ~= UPDATE_PREFIX or type(msg) ~= "string" then return end
+    local v = msg:match("^V:(%d+%.%d+%.%d+%a?)$")
+    local score = v and VersionScore(v)
+    if not score then return end
+    if score > myScore and score > notifiedScore then
+        notifiedScore = score
+        DEFAULT_CHAT_FRAME:AddMessage(
+            "|cff33ff99AscensionES|r: hay una versión nueva |cffffffff" .. v
+            .. "|r disponible (tienes " .. myVersionStr
+            .. "). Descárgala en |cff99ccffgithub.com/HideXs/AscensionES|r (apartado Releases).")
+    elseif score < myScore and channel and REBROADCAST_CHANNELS[channel] then
+        BroadcastVersion(channel)
+    end
+end)
+
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -1361,4 +1420,4 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         status(db.achievements), status(db.ui)))
 end
 
-AscensionES.__firma = "AES/2026-07-14/ab1acdbb75d06b3b/HideXs"
+AscensionES.__firma = "AES/2026-07-14/b3d2972fe691a065/HideXs"
