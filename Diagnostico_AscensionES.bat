@@ -32,5 +32,23 @@ echo.
 echo [6] Ruta del juego detectada al lado (Ascension.exe):
 if exist "..\..\Ascension.exe" (echo     OK: esta es la carpeta AddOns del juego) else (echo     *** OJO: aqui al lado no esta Ascension.exe - puede ser una copia/carpeta equivocada ***)
 echo.
+echo [7] Busqueda de copias/duplicados en AddOns:
+set "dup=0"
+for /d %%D in (*) do (
+    if /i not "%%D"=="AscensionES" if exist "%%D\AscensionES.toc" (
+        echo     *** DUPLICADO: la carpeta "%%D" contiene AscensionES.toc ***
+        echo         El juego SOLO lee la carpeta llamada exactamente AscensionES.
+        echo         Borra o renombra "%%D" y deja una unica carpeta AscensionES.
+        set "dup=1"
+    )
+)
+for /d %%D in (*scension*) do (
+    if /i not "%%D"=="AscensionES" if not exist "%%D\AscensionES.toc" (
+        echo     aviso: carpeta con nombre parecido a AscensionES: "%%D" ^(revisala^)
+        set "dup=1"
+    )
+)
+if "!dup!"=="0" echo     OK: sin duplicados ni copias
+echo.
 echo Listo. Haz captura de TODA esta ventana.
 pause

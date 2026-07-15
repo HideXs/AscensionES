@@ -60,6 +60,7 @@ para que podamos ayudarte.
 | **[3] líneas raras** | `.toc` corrupto | Reinstala desde el zip oficial |
 | **[5] menos de 15** | Faltan archivos de datos | Borra la carpeta `AscensionES` y extrae el zip de nuevo |
 | **[6] OJO: no está Ascension.exe** | **La causa más común**: has puesto el addon en una carpeta que NO es la del juego (instalación vieja, copia, otra ruta) | Busca la instalación real: la carpeta correcta contiene `Ascension.exe` dos niveles más arriba |
+| **[7] DUPLICADO** | Hay otra carpeta con el addon dentro (`AscensionES (1)`, `AscensionES - copia`…) de extraer varias veces | Borra las copias y deja UNA sola carpeta llamada exactamente `AscensionES` |
 
 Y siempre: actualiza con el **juego cerrado** y comprueba que la ruta final sea
 `...\Interface\AddOns\AscensionES\AscensionES.toc` (sin carpetas de versión intermedias).
