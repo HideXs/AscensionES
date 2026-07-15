@@ -38,6 +38,10 @@ Addon que traduce al **español de España** el contenido de [Ascension WoW](htt
 - Panel de opciones: **Interfaz → AddOns → AscensionES** (activa/desactiva cada módulo).
 - Comando `/ases` en el chat: `hechizos`, `objetos`, `logros`, `interfaz`, `chat`, `errores`, `voz`, `refrescar`…
 
+## 🩺 ¿No te aparece el addon o no carga?
+
+Usa la [**herramienta de diagnóstico**](DIAGNOSTICO.md): un doble clic y te dice qué pasa (ruta equivocada, extracción incompleta, antivirus…).
+
 ## 🐛 ¿Has visto un error de traducción?
 
 Abre una [Issue con el formulario de errores](../../issues/new/choose): te pedirá el nombre exacto, dónde aparece y una captura. Las correcciones se incorporan en la siguiente versión.
