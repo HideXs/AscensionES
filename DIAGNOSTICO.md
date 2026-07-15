@@ -37,19 +37,22 @@ para que podamos ayudarte.
 
 [4] Contenido de la carpeta AscensionES:
 15/07/2026  04:08 AM               556 AscensionES.toc
-15/07/2026  04:08 AM             2.776 Chat.lua
-15/07/2026  04:08 AM            79.365 Core.lua
-15/07/2026  04:24 AM    <DIR>          data
-15/07/2026  04:08 AM             1.922 Errors.lua
-15/07/2026  04:24 AM    <DIR>          sounds
-15/07/2026  04:08 AM             4.114 Voice.lua
-                5 archivos          88.733 bytes
+15/07/2026  01:35 AM             3.468 Chat.lua
+15/07/2026  04:05 AM            93.167 Core.lua
+15/07/2026  02:30 AM    <DIR>          data
+13/07/2026  04:37 PM             2.244 Errors.lua
+13/07/2026  04:12 PM    <DIR>          sounds
+13/07/2026  04:14 PM             4.553 Voice.lua
+                5 archivos         103.988 bytes
 
 [5] Numero de .lua en data:
 15
 
 [6] Ruta del juego detectada al lado (Ascension.exe):
     OK: esta es la carpeta AddOns del juego
+
+[7] Busqueda de copias/duplicados en AddOns:
+    OK: sin duplicados ni copias
 ```
 
 ## Qué significa cada aviso
