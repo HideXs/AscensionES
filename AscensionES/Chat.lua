@@ -42,6 +42,22 @@ end
 
 AES.TranslateSystemText = TranslateChat
 
+local function TranslateChatStrict(msg)
+    local es = AES.ChatExact[msg]
+    if es then return es end
+    local first = msg:match("^(%S+)")
+    local bucket = first and AES.ChatPatterns[first]
+    if bucket then
+        for _, p in ipairs(bucket) do
+            if msg:match(p[1]) then
+                return (msg:gsub(p[1], p[2]))
+            end
+        end
+    end
+    return msg
+end
+AES.TranslateSystemTextStrict = TranslateChatStrict
+
 local function Filter(self, event, msg, ...)
     if not (AscensionESDB and AscensionESDB.chat) or type(msg) ~= "string" then
         return false

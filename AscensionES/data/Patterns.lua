@@ -174,6 +174,7 @@ AscensionES.LinePatterns = {
     { "^Herb$", "Hierba" },
     { "^Corpse of (.+)$", "Cadáver de %1" },
     { "^Bags: (%d+)$", "Bolsas: %1" },
+
     { "^Bank: (%d+)$", "Banco: %1" },
     { "^Equipped: (%d+)$", "Equipado: %1" },
     { "^%((%d+) Min Cooldown%)$", "(%1 min de reutilización)" },
