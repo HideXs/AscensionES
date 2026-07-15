@@ -18,7 +18,7 @@ Addon que traduce al **español de España** el contenido de [Ascension WoW](htt
 | Descripciones de hechizos/talentos | 160.886 |
 | Tooltips y rangos | 75.453 |
 | Objetos (nombres, descripciones, efectos Equipar/Uso) | 154.905 |
-| **Misiones** (título, descripción, objetivos y diálogos de progreso/entrega) | 9.753 |
+| **Misiones** (título, descripción, objetivos y diálogos de progreso/entrega) | 13.987 |
 | **Nombres de NPC oficiales** (tooltip, marco de objetivo, nameplates, diálogos) | 22.993 |
 | Logros (títulos, descripciones, criterios, categorías) | 22.980 |
 | Interfaz custom de Ascension, errores y mensajes de chat/sistema | miles |
@@ -48,6 +48,6 @@ Abre una [Issue con el formulario de errores](../../issues/new/choose): te pedir
 
 ## 🖋️ Autoría
 
-Traducción y addon creados por **HideXs** (2026). Cada release legítima incluye una firma de autoría verificable (v1.0.6: `AES/2026-07-15/ce1d56a4311964c5/HideXs`); desconfía de copias que no la lleven.
+Traducción y addon creados por **HideXs** (2026). Cada release legítima incluye una firma de autoría verificable (v1.1.0: `AES/2026-07-15/a21958b7acae5cd5/HideXs`); desconfía de copias que no la lleven.
 
 © 2026 HideXs — todos los derechos reservados sobre la traducción y el código del addon. No redistribuir versiones modificadas sin permiso. World of Warcraft® es una marca de Blizzard Entertainment; Ascension es un proyecto independiente de terceros.

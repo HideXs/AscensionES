@@ -1347,7 +1347,22 @@ local function TranslateQuestInfo()
             if id == false then id = nil end
         end
     end
-    if not id or id == 0 then return end
+    if not id or id == 0 then
+
+        if db.capture and _G["QuestInfoTitleHeader"] then
+            local t = _G["QuestInfoTitleHeader"].GetText and _G["QuestInfoTitleHeader"]:GetText()
+            if t and t ~= "" then
+                db.qcaptured = db.qcaptured or {}
+                local dFS = _G["QuestInfoDescriptionText"]
+                local oFS = _G["QuestInfoObjectivesText"]
+                db.qcaptured[t] = {
+                    d = dFS and dFS.GetText and dFS:GetText() or nil,
+                    o = oFS and oFS.GetText and oFS:GetText() or nil,
+                }
+            end
+        end
+        return
+    end
     local es_t = AES.QuestTitle[id]
     if es_t then
         QuestGuardSet(_G["QuestInfoTitleHeader"], es_t, AES.QuestTitleEN[id])
@@ -2074,4 +2089,4 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         status(db.quests), status(db.achievements), status(db.ui)))
 end
 
-AscensionES.__firma = "AES/2026-07-15/ce1d56a4311964c5/HideXs"
+AscensionES.__firma = "AES/2026-07-15/a21958b7acae5cd5/HideXs"
