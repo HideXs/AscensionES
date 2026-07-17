@@ -14,13 +14,14 @@ Addon que traduce al **español de España** el contenido de [Ascension WoW](htt
 
 | Contenido | Entradas |
 |---|---:|
-| Nombres de hechizos y talentos | 67.002 |
-| Descripciones de hechizos/talentos | 160.886 |
-| Tooltips y rangos | 75.453 |
-| Objetos (nombres, descripciones, efectos Equipar/Uso) | 154.905 |
+| Nombres de hechizos y talentos | 67.322 |
+| Descripciones de hechizos/talentos | 161.163 |
+| Tooltips y rangos | 75.541 |
+| Objetos (nombres, descripciones, efectos Equipar/Uso) | 151.412 |
 | **Misiones** (título, descripción, objetivos y diálogos de progreso/entrega) | 13.987 |
-| **Nombres de NPC oficiales** (tooltip, marco de objetivo, nameplates, diálogos) | 22.993 |
-| Logros (títulos, descripciones, criterios, categorías) | 22.980 |
+| **Diálogos de NPC** (ventana de diálogo, saludos, frases al chat y burbujas) | ~69.000 |
+| **Nombres de NPC oficiales** (tooltip, marco de objetivo, nameplates, diálogos) | 22.994 |
+| Logros (títulos, descripciones, criterios, categorías) | 22.615 |
 | Interfaz custom de Ascension, errores y mensajes de chat/sistema | miles |
 | Voces oficiales en español («No tengo maná…») por raza y género | 1.511 clips |
 
@@ -36,7 +37,7 @@ Addon que traduce al **español de España** el contenido de [Ascension WoW](htt
 ## ⚙️ Configuración
 
 - Panel de opciones: **Interfaz → AddOns → AscensionES** (activa/desactiva cada módulo).
-- Comando `/ases` en el chat: `hechizos`, `objetos`, `logros`, `interfaz`, `chat`, `errores`, `voz`, `refrescar`…
+- Comando `/ases` en el chat: `hechizos`, `objetos`, `misiones`, `dialogos`, `logros`, `interfaz`, `chat`, `errores`, `voz`, `refrescar`…
 
 ## 🩺 ¿No te aparece el addon o no carga?
 
@@ -48,6 +49,6 @@ Abre una [Issue con el formulario de errores](../../issues/new/choose): te pedir
 
 ## 🖋️ Autoría
 
-Traducción y addon creados por **HideXs** (2026). Cada release legítima incluye una firma de autoría verificable (v1.1.0: `AES/2026-07-15/a21958b7acae5cd5/HideXs`); desconfía de copias que no la lleven.
+Traducción y addon creados por **HideXs** (2026). Cada release legítima incluye una firma de autoría verificable (v1.3.0: `AES/2026-07-17/5e72a60cd2ebbd20/HideXs`); desconfía de copias que no la lleven.
 
 © 2026 HideXs — todos los derechos reservados sobre la traducción y el código del addon. No redistribuir versiones modificadas sin permiso. World of Warcraft® es una marca de Blizzard Entertainment; Ascension es un proyecto independiente de terceros.
