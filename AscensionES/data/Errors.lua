@@ -1,7 +1,7 @@
 AscensionES = AscensionES or {}
 AscensionES.ErrExact = {
 ["A group leader has removed your voice privileges."]="Un líder de grupo te ha retirado los privilegios de voz.",
-["A group leader has restored your voice privileges."]="Un líder de grupo te ha retirado los privilegios de voz.",
+["A group leader has restored your voice privileges."]="Un líder de grupo te ha restablecido los privilegios de voz.",
 ["A mail attachment was invalid."]="Un archivo adjunto es inválido.",
 ["A mail included too many attachments."]="Un mensaje contiene demasiados archivos adjuntos.",
 ["A more powerful spell is already active"]="Ya está activo un hechizo más poderoso",

@@ -52,6 +52,8 @@ local function BuildMaps()
     local _, raceFile = UnitRace("player")
     local sex = UnitSex("player")
     if raceFile then
+
+        if raceFile == "Scourge" then raceFile = "Undead" end
         playerKey = raceFile .. (sex == 3 and "Female" or "Male")
     end
     wipe(msgMap)

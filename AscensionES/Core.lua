@@ -32,7 +32,7 @@ AES.AchRewardEN    = AES.AchRewardEN or {}
 local db
 
 local defaults = { spells = true, items = true, units = true, patterns = true, flavor = true,
-                   ui = true, achievements = true, quests = true }
+                   ui = true, achievements = true, quests = true, gossip = true }
 
 local function TranslateValue(v)
     local w = AES.ValueWords
@@ -1210,6 +1210,7 @@ local OPTIONS_LIST = {
     { key = "flavor", text = "Texto ambiental de objetos (la cita amarilla)" },
     { key = "units", text = "Nombres de NPC (oficiales esES; los custom de CoA siguen en inglés)" },
     { key = "quests", text = "Misiones (descripción, objetivos, progreso y entrega)" },
+    { key = "gossip", text = "Diálogos de NPC (ventana de conversación, chat y burbujas)" },
     { key = "achievements", text = "Logros" },
     { key = "patterns", text = "Líneas genéricas de tooltip (coste, alcance, rangos...)" },
     { key = "ui", text = "Interfaz y menús (los cambios requieren /reload)" },
@@ -1306,7 +1307,11 @@ end
 
 local function QuestRenderES(t)
     local male = not (UnitSex and UnitSex("player") == 3)
-    t = t:gsub("%$[Gg]([^:;]*):([^;]*);", function(m, f) return male and m or f end)
+
+    t = t:gsub("%$[Gg]([^:;]*):([^;]*);", function(m, f)
+        local pick = male and m or f
+        return (pick:gsub("^%s+", ""):gsub("%s+$", ""))
+    end)
     local name = (UnitName and UnitName("player")) or "aventurero"
     local c = UnitClass and UnitClass("player")
     local cES = (c and QUEST_CLASS_ES[c]) or "aventurero"
@@ -1318,11 +1323,56 @@ local function QuestRenderES(t)
     return t
 end
 
+local function GuardEq(shown, guardEN)
+    return guardEN ~= nil
+        and QuestNormalizeShown(shown) == CollapseWS(guardEN:gsub("\r", ""))
+end
+
+local function ResolveQuestIDByShown(title, shown, fields)
+    if not (title and shown and shown ~= "" and AES.QuestData) then return nil end
+    local cands = (AES.QuestTitleEN2IDs and AES.QuestTitleEN2IDs[title])
+        or (AES.QuestTitleES2IDs and AES.QuestTitleES2IDs[title])
+    if not cands then return nil end
+    for _, id in ipairs(cands) do
+        local qd = AES.QuestData[id]
+        if qd then
+            for _, f in ipairs(fields) do
+                if GuardEq(shown, qd[f .. "EN"]) then return id end
+                local es = qd[f]
+                if es and CollapseWS(shown) == CollapseWS(QuestRenderES(es)) then
+                    return id
+                end
+            end
+        end
+    end
+end
+
+local QUEST_PANEL_FIELDS = {
+    { "QuestInfoDescriptionText", "d" },
+    { "QuestInfoObjectivesText", "o" },
+    { "QuestInfoRewardText", "c" },
+    { "QuestProgressText", "p" },
+}
+local function ResolveQuestIDByPanels(title)
+    if not title or title == "" then return nil end
+    for _, pf in ipairs(QUEST_PANEL_FIELDS) do
+        local fs = _G[pf[1]]
+        if fs and fs.GetText and (not fs.IsVisible or fs:IsVisible()) then
+            local shown = fs:GetText()
+            if shown and shown ~= "" then
+                local id = ResolveQuestIDByShown(title, shown, { pf[2] })
+                if id then return id end
+            end
+        end
+    end
+end
+AES.ResolveQuestIDByPanels = ResolveQuestIDByPanels
+
 local function QuestGuardSet(fs, es, en)
     if not (fs and es and en) then return end
     local shown = fs.GetText and fs:GetText()
     if not shown or shown == "" then return end
-    if QuestNormalizeShown(shown) ~= CollapseWS(en:gsub("\r", "")) then return end
+    if not GuardEq(shown, en) then return end
     pcall(fs.SetText, fs, QuestRenderES(es))
 end
 
@@ -1345,6 +1395,8 @@ local function TranslateQuestInfo()
             id = (AES.QuestTitleEN2ID and AES.QuestTitleEN2ID[t])
                 or (AES.QuestTitleES2ID and AES.QuestTitleES2ID[t]) or nil
             if id == false then id = nil end
+
+            if not id then id = ResolveQuestIDByPanels(t) end
         end
     end
     if not id or id == 0 then
@@ -1383,6 +1435,35 @@ local function TranslateQuestInfo()
     QuestGuardSet(_G["QuestInfoRewardText"], qd.c, qd.cEN)
 end
 
+local function TranslateQuestItemButtons()
+    if not (db and db.items and AES.ItemName) then return end
+    local function apply(fsName, link)
+        local fs = _G[fsName]
+        if not (fs and fs.GetText and link) then return end
+        local id = tonumber(link:match("item:(%d+)"))
+        local es = id and AES.ItemName[id]
+        if not es then return end
+        local guard = AES.ItemNameEN and AES.ItemNameEN[id]
+        local shown = fs:GetText()
+        if shown and (not guard or guard == shown) and shown ~= es then
+            pcall(fs.SetText, fs, es)
+        end
+    end
+    for i = 1, 8 do
+        local btn = _G["QuestInfoItem" .. i]
+        if btn and btn.IsShown and btn:IsShown() and btn.type and btn.GetID
+            and GetQuestItemLink then
+            apply("QuestInfoItem" .. i .. "Name",
+                  select(1, GetQuestItemLink(btn.type, btn:GetID())))
+        end
+        local pbtn = _G["QuestProgressItem" .. i]
+        if pbtn and pbtn.IsShown and pbtn:IsShown() and GetQuestItemLink then
+            apply("QuestProgressItem" .. i .. "Name",
+                  select(1, GetQuestItemLink("required", i)))
+        end
+    end
+end
+
 local function TranslateQuestProgress()
     if not (db and db.quests) then return end
     local id = GetQuestID and tonumber(GetQuestID())
@@ -1392,6 +1473,8 @@ local function TranslateQuestProgress()
             id = (AES.QuestTitleEN2ID and AES.QuestTitleEN2ID[t])
                 or (AES.QuestTitleES2ID and AES.QuestTitleES2ID[t]) or nil
             if id == false then id = nil end
+
+            if not id then id = ResolveQuestIDByPanels(t) end
         end
     end
     if not id or id == 0 then return end
@@ -1457,19 +1540,73 @@ local function TranslateGreetings()
     end)
 end
 
+local function ReflowQuestPanels()
+
+    for _, name in ipairs({ "QuestFrameRewardPanel", "QuestFrameDetailPanel",
+                            "QuestFrameProgressPanel" }) do
+        local panel = _G[name]
+        if panel and panel.IsShown and panel:IsShown()
+            and type(_G[name .. "_OnShow"]) == "function" then
+            pcall(_G[name .. "_OnShow"], panel)
+        end
+    end
+    for _, name in ipairs({ "QuestRewardScrollFrame", "QuestDetailScrollFrame",
+                            "QuestProgressScrollFrame" }) do
+        local sf = _G[name]
+        if sf and sf.IsShown and sf:IsShown() then
+            if sf.UpdateScrollChildRect then
+                pcall(sf.UpdateScrollChildRect, sf)
+            end
+            local sb = _G[name .. "ScrollBar"]
+            if sb and sb.SetValue and sb.GetValue then
+                local v = sb:GetValue() or 0
+                pcall(sb.SetValue, sb, v + 1)
+                pcall(sb.SetValue, sb, v)
+            end
+        end
+    end
+end
+AES.ReflowQuestPanels = ReflowQuestPanels
+
 local questDelay
 local function DelayedQuestPass()
     if not questDelay then
         questDelay = CreateFrame("Frame")
     end
-    local elapsed = 0
+    local elapsed, shots = 0, 0
     questDelay:SetScript("OnUpdate", function(self, dt)
         elapsed = elapsed + dt
-        if elapsed < 0.3 then return end
-        self:SetScript("OnUpdate", nil)
+        if (shots == 0 and elapsed < 0.3) or (shots == 1 and elapsed < 1.0) then
+            return
+        end
+        shots = shots + 1
         TranslateQuestInfo()
         TranslateQuestProgress()
+        pcall(ReflowQuestPanels)
+        pcall(TranslateQuestItemButtons)
+        if shots >= 2 then
+            self:SetScript("OnUpdate", nil)
+        end
     end)
+end
+
+local function CaptureGiverSex()
+    if not (db and UnitSex) then return end
+    local id
+    if GetQuestID then id = tonumber(GetQuestID()) end
+    if (not id or id == 0) and _G["QuestInfoTitleHeader"] then
+        local t = _G["QuestInfoTitleHeader"].GetText and _G["QuestInfoTitleHeader"]:GetText()
+        id = t and ((AES.QuestTitleES2ID and AES.QuestTitleES2ID[t])
+            or (AES.QuestTitleEN2ID and AES.QuestTitleEN2ID[t])) or nil
+        if id == false then id = nil end
+        if not id then id = ResolveQuestIDByPanels(t) end
+    end
+    if not id or id == 0 then return end
+    local sex = UnitExists and UnitExists("npc") and UnitSex("npc") or 0
+    db.qsex = db.qsex or {}
+    if db.qsex[id] == nil then
+        db.qsex[id] = sex
+    end
 end
 
 local questFrame = CreateFrame("Frame")
@@ -1478,13 +1615,29 @@ questFrame:RegisterEvent("QUEST_PROGRESS")
 questFrame:RegisterEvent("QUEST_COMPLETE")
 questFrame:RegisterEvent("QUEST_GREETING")
 questFrame:RegisterEvent("GOSSIP_SHOW")
+questFrame:RegisterEvent("QUEST_ITEM_UPDATE")
 questFrame:SetScript("OnEvent", function(self, event)
     if not (db and db.quests) then return end
+    if event == "QUEST_DETAIL" or event == "QUEST_COMPLETE" then
+        local elapsed = 0
+        local sexer = CreateFrame("Frame")
+        sexer:SetScript("OnUpdate", function(sf, dt)
+            elapsed = elapsed + dt
+            if elapsed < 0.4 then return end
+            sf:SetScript("OnUpdate", nil)
+            pcall(CaptureGiverSex)
+        end)
+    end
     if event == "QUEST_PROGRESS" then
         TranslateQuestProgress()
         DelayedQuestPass()
     elseif event == "QUEST_GREETING" or event == "GOSSIP_SHOW" then
         TranslateGreetings()
+    elseif event == "QUEST_ITEM_UPDATE" then
+
+        TranslateQuestInfo()
+        pcall(ReflowQuestPanels)
+        DelayedQuestPass()
     else
         TranslateQuestInfo()
         DelayedQuestPass()
@@ -1501,6 +1654,275 @@ end
 
 AES.TranslateQuestInfo = TranslateQuestInfo
 AES.TranslateQuestProgress = TranslateQuestProgress
+
+local gossipIdx
+local gossipApplied = {}
+
+local function GossipRenderEN(t)
+    local male = not (UnitSex and UnitSex("player") == 3)
+
+    t = t:gsub("%$[Gg]([^:;]*):([^;]*);", function(m, f)
+        local pick = male and m or f
+        return (pick:gsub("^%s+", ""):gsub("%s+$", ""))
+    end)
+    local name = (UnitName and UnitName("player")) or ""
+    local c = (UnitClass and UnitClass("player")) or ""
+    local r = (UnitRace and UnitRace("player")) or ""
+    return (t:gsub("%$[Nn]", name):gsub("%$[Cc]", c):gsub("%$[Rr]", r))
+end
+
+local function GossipLookup(shown)
+    local map = AES.GossipEN2ES
+    if not (map and shown and shown ~= "") then return nil end
+    local key = shown:gsub("\r", ""):gsub("%s+$", "")
+    local es = map[key]
+    if es == nil then
+        if not gossipIdx then
+            gossipIdx = {}
+            for en, v in pairs(map) do
+                if en:find("%$") then gossipIdx[GossipRenderEN(en)] = v end
+            end
+        end
+        es = gossipIdx[key]
+    end
+    if es then
+        es = QuestRenderES(es)
+        gossipApplied[es] = true
+        return es
+    end
+    return nil
+end
+AES.GossipLookup = GossipLookup
+
+local capCount = {}
+local function GossipCapture(store, t)
+    if not db or gossipApplied[t] or #t > 3000 then return end
+    db[store] = db[store] or {}
+    if db[store][t] then return end
+    if capCount[store] == nil then
+        local n = 0
+        for _ in pairs(db[store]) do n = n + 1 end
+        capCount[store] = n
+    end
+    if capCount[store] >= 400 then return end
+    capCount[store] = capCount[store] + 1
+    db[store][t] = {
+        n = (UnitName and UnitName("player")) or "",
+        c = (UnitClass and UnitClass("player")) or "",
+        r = (UnitRace and UnitRace("player")) or "",
+    }
+end
+
+local function TranslateGossipGreeting()
+    if not (db and db.gossip) then return end
+    for _, fsName in ipairs({ "GossipGreetingText", "GreetingText" }) do
+        local fs = _G[fsName]
+        local t = fs and fs.GetText and fs:GetText()
+        if t and t ~= "" and not gossipApplied[t] then
+            local es = GossipLookup(t)
+            if es then
+                pcall(fs.SetText, fs, es)
+            else
+                GossipCapture("gcaptured", t)
+            end
+        end
+    end
+    for i = 1, 32 do
+        local b = _G["GossipTitleButton" .. i]
+        if b and b.GetText and b:IsShown() then
+            local t = b:GetText()
+            if t and not gossipApplied[t] then
+                local es = GossipLookup(t)
+                if es then pcall(b.SetText, b, es) end
+            end
+        end
+    end
+end
+AES.TranslateGossipGreeting = TranslateGossipGreeting
+
+local gossipDelay
+local gossipFrame = CreateFrame("Frame")
+gossipFrame:RegisterEvent("GOSSIP_SHOW")
+gossipFrame:RegisterEvent("QUEST_GREETING")
+gossipFrame:SetScript("OnEvent", function()
+    if not (db and db.gossip) then return end
+    TranslateGossipGreeting()
+
+    if not gossipDelay then gossipDelay = CreateFrame("Frame") end
+    local elapsed = 0
+    gossipDelay:SetScript("OnUpdate", function(self, dt)
+        elapsed = elapsed + dt
+        if elapsed < 0.3 then return end
+        self:SetScript("OnUpdate", nil)
+        TranslateGossipGreeting()
+    end)
+end)
+
+local bubblePending, bubbleScanner = {}, nil
+
+local function ScanBubbles()
+    local now = GetTime()
+    local any = false
+    for en, info in pairs(bubblePending) do
+        if now - info.t0 > 3 then bubblePending[en] = nil else any = true end
+    end
+    if not (any and WorldFrame) then return false end
+    for _, f in ipairs({ WorldFrame:GetChildren() }) do
+        if not (f.GetName and f:GetName()) then
+            for _, r in ipairs({ f:GetRegions() }) do
+                if r.IsObjectType and r:IsObjectType("FontString") then
+                    local t = r.GetText and r:GetText()
+                    local info = t and bubblePending[t]
+                    if info then
+                        pcall(r.SetText, r, info.es)
+
+                        if r.GetStringWidth and f.SetWidth then
+                            pcall(function()
+                                f:SetWidth(math.min(330, r:GetStringWidth() + 28))
+                                f:SetHeight(r:GetStringHeight() + 28)
+                            end)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return true
+end
+
+local function StartBubbleScan()
+    if not bubbleScanner then bubbleScanner = CreateFrame("Frame") end
+    local elapsed = 0
+    bubbleScanner:SetScript("OnUpdate", function(self, dt)
+        elapsed = elapsed + dt
+        if elapsed < 0.1 then return end
+        elapsed = 0
+        if not ScanBubbles() then self:SetScript("OnUpdate", nil) end
+    end)
+end
+
+local function GossipChatFilter(self, event, msg, ...)
+    if not (db and db.gossip) or type(msg) ~= "string" then return false end
+    local es = GossipLookup(msg)
+    if es then
+        bubblePending[msg] = { es = es, t0 = GetTime() }
+        StartBubbleScan()
+        return false, es, ...
+    end
+    GossipCapture("scaptured", msg)
+    return false
+end
+AES.GossipChatFilter = GossipChatFilter
+
+if ChatFrame_AddMessageEventFilter then
+    for _, ev in ipairs({ "CHAT_MSG_MONSTER_SAY", "CHAT_MSG_MONSTER_YELL",
+                          "CHAT_MSG_MONSTER_WHISPER", "CHAT_MSG_MONSTER_EMOTE",
+                          "CHAT_MSG_RAID_BOSS_EMOTE", "CHAT_MSG_RAID_BOSS_WHISPER" }) do
+        ChatFrame_AddMessageEventFilter(ev, GossipChatFilter)
+    end
+end
+
+local origGetTitleText = type(GetTitleText) == "function" and GetTitleText or nil
+
+local function CurrentQuestID()
+    local id = GetQuestID and tonumber(GetQuestID())
+    if id and id ~= 0 then return id end
+    local t = origGetTitleText and origGetTitleText()
+    if t and t ~= "" and AES.QuestTitleEN2ID then
+        id = AES.QuestTitleEN2ID[t]
+        if id then return id end
+    end
+    return nil
+end
+
+local function WrapQuestGetter(name, field)
+    local orig = _G[name]
+    if type(orig) ~= "function" then return end
+    _G[name] = function(...)
+        local en = orig(...)
+        if not (db and db.quests) or type(en) ~= "string" or en == "" then
+            return en
+        end
+        local id = CurrentQuestID()
+        local qd = id and AES.QuestData and AES.QuestData[id]
+        local es = qd and qd[field]
+        local guard = qd and qd[field .. "EN"]
+        if not (es and guard and GuardEq(en, guard)) then
+
+            local t = origGetTitleText and origGetTitleText()
+            local rid = t and ResolveQuestIDByShown(t, en, { field })
+            qd = rid and AES.QuestData and AES.QuestData[rid]
+            es = qd and qd[field]
+            guard = qd and qd[field .. "EN"]
+        end
+        if es and guard and GuardEq(en, guard) then
+            return QuestRenderES(es)
+        end
+        return en
+    end
+end
+WrapQuestGetter("GetQuestText", "d")
+WrapQuestGetter("GetObjectiveText", "o")
+WrapQuestGetter("GetProgressText", "p")
+WrapQuestGetter("GetRewardText", "c")
+
+if origGetTitleText then
+    GetTitleText = function(...)
+        local en = origGetTitleText(...)
+        if not (db and db.quests) or type(en) ~= "string" or en == "" then
+            return en
+        end
+
+        local es = AES.QuestTitleEN2ES and AES.QuestTitleEN2ES[en]
+        if es then return es end
+        return en
+    end
+end
+
+for _, name in ipairs({ "GetGossipText", "GetGreetingText" }) do
+    local orig = _G[name]
+    if type(orig) == "function" then
+        _G[name] = function(...)
+            local en = orig(...)
+            if not (db and db.gossip) or type(en) ~= "string" then return en end
+            return GossipLookup(en) or en
+        end
+    end
+end
+
+local function WrapTitleList(fname)
+    local orig = _G[fname]
+    if type(orig) ~= "function" then return end
+    _G[fname] = function(...)
+        local r = { orig(...) }
+        if db and db.quests and AES.QuestTitleEN2ES then
+            for i = 1, #r do
+                if type(r[i]) == "string" then
+                    local es = AES.QuestTitleEN2ES[r[i]]
+                    if es then r[i] = es end
+                end
+            end
+        end
+        return unpack(r)
+    end
+end
+WrapTitleList("GetGossipAvailableQuests")
+WrapTitleList("GetGossipActiveQuests")
+
+local function WrapTitleGetter(fname)
+    local orig = _G[fname]
+    if type(orig) ~= "function" then return end
+    _G[fname] = function(...)
+        local t = orig(...)
+        if db and db.quests and type(t) == "string" and AES.QuestTitleEN2ES then
+            local es = AES.QuestTitleEN2ES[t]
+            if es then return es end
+        end
+        return t
+    end
+end
+WrapTitleGetter("GetAvailableTitle")
+WrapTitleGetter("GetActiveTitle")
 
 local uiFSHooked = setmetatable({}, { __mode = "k" })
 local inUIFSHook = false
@@ -1721,6 +2143,80 @@ local notifiedScore = 0
 local lastSent = {}
 local REBROADCAST_CHANNELS = { PARTY = true, RAID = true, GUILD = true, BATTLEGROUND = true }
 
+local UPDATE_URL = "https://github.com/HideXs/AscensionES/releases"
+local updPopup
+
+local function TryOpenURL(url)
+    for _, name in ipairs({ "OpenURL", "LaunchURL", "OpenExternalURL" }) do
+        local fn = _G[name]
+        if type(fn) == "function" and pcall(fn, url) then
+            return true
+        end
+    end
+    return false
+end
+
+local function ShowUpdatePopup(v)
+    if not updPopup then
+        local f = CreateFrame("Frame", "AscensionESUpdate", UIParent)
+        f:SetFrameStrata("DIALOG")
+        f:SetWidth(440)
+        f:SetHeight(150)
+        f:SetPoint("TOP", UIParent, "TOP", 0, -140)
+        f:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            tile = true, tileSize = 32, edgeSize = 32,
+            insets = { left = 11, right = 12, top = 12, bottom = 11 },
+        })
+        f:EnableMouse(true)
+        local msg = f:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+        msg:SetPoint("TOP", 0, -22)
+        msg:SetWidth(400)
+        f.msg = msg
+        local eb = CreateFrame("EditBox", "AscensionESUpdateEB", f, "InputBoxTemplate")
+        eb:SetWidth(330)
+        eb:SetHeight(20)
+        eb:SetPoint("TOP", msg, "BOTTOM", 0, -10)
+        eb:SetAutoFocus(false)
+        eb:SetText(UPDATE_URL)
+        eb:SetScript("OnTextChanged", function(self)
+
+            if self:GetText() ~= UPDATE_URL then
+                self:SetText(UPDATE_URL)
+                self:HighlightText()
+            end
+        end)
+        eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        f.eb = eb
+        local b1 = CreateFrame("Button", "AscensionESUpdateB1", f, "UIPanelButtonTemplate")
+        b1:SetWidth(160)
+        b1:SetHeight(24)
+        b1:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -8, 18)
+        b1:SetText("Actualizar")
+        b1:SetScript("OnClick", function()
+            if TryOpenURL(UPDATE_URL) then
+                f:Hide()
+                return
+            end
+            f.msg:SetText("Copia el enlace con |cffffffffCtrl+C|r y pégalo en tu navegador:")
+            f.eb:SetFocus()
+            f.eb:HighlightText()
+        end)
+        local b2 = CreateFrame("Button", "AscensionESUpdateB2", f, "UIPanelButtonTemplate")
+        b2:SetWidth(160)
+        b2:SetHeight(24)
+        b2:SetPoint("BOTTOMLEFT", f, "BOTTOM", 8, 18)
+        b2:SetText("Cancelar")
+        b2:SetScript("OnClick", function() f:Hide() end)
+        updPopup = f
+    end
+    updPopup.msg:SetText("|cff33ff99AscensionES|r: hay una versión nueva |cffffffff" .. v
+        .. "|r disponible (tienes " .. myVersionStr .. ").")
+    updPopup.eb:SetText(UPDATE_URL)
+    updPopup:Show()
+end
+
 local function BroadcastVersion(chan)
     if not SendAddonMessage then return end
     local now = GetTime()
@@ -1760,6 +2256,7 @@ updFrame:SetScript("OnEvent", function(self, event, prefix, msg, channel)
             "|cff33ff99AscensionES|r: hay una versión nueva |cffffffff" .. v
             .. "|r disponible (tienes " .. myVersionStr
             .. "). Descárgala en |cff99ccffgithub.com/HideXs/AscensionES|r (apartado Releases).")
+        pcall(ShowUpdatePopup, v)
     elseif score < myScore and channel and REBROADCAST_CHANNELS[channel] then
         BroadcastVersion(channel)
     end
@@ -1839,21 +2336,32 @@ frame:SetScript("OnEvent", function(self, event, arg1)
     AES.QuestTitleEN2ES = {}
     AES.QuestTitleEN2ID = {}
     AES.QuestTitleES2ID = {}
+    AES.QuestTitleEN2IDs = {}
+    AES.QuestTitleES2IDs = {}
     for id, en in pairs(AES.QuestTitleEN or {}) do
         local es = AES.QuestTitle[id]
-        if es and AES.QuestTitleEN2ES[en] == nil then
-            AES.QuestTitleEN2ES[en] = es
-            AES.QuestTitleEN2ID[en] = id
-        elseif es and AES.QuestTitleEN2ES[en] ~= es then
-            AES.QuestTitleEN2ES[en] = false
-            AES.QuestTitleEN2ID[en] = nil
-        end
         if es then
+            if AES.QuestTitleEN2ES[en] == nil then
+                AES.QuestTitleEN2ES[en] = es
+                AES.QuestTitleEN2ID[en] = id
+            elseif AES.QuestTitleEN2ES[en] ~= es then
+                AES.QuestTitleEN2ES[en] = false
+                AES.QuestTitleEN2ID[en] = nil
+            else
+
+                AES.QuestTitleEN2ID[en] = nil
+            end
+            local l = AES.QuestTitleEN2IDs[en]
+            if not l then l = {}; AES.QuestTitleEN2IDs[en] = l end
+            l[#l + 1] = id
             if AES.QuestTitleES2ID[es] == nil then
                 AES.QuestTitleES2ID[es] = id
             elseif AES.QuestTitleES2ID[es] ~= id then
                 AES.QuestTitleES2ID[es] = false
             end
+            local le = AES.QuestTitleES2IDs[es]
+            if not le then le = {}; AES.QuestTitleES2IDs[es] = le end
+            le[#le + 1] = id
         end
     end
     if not db._v or db._v < 2 then
@@ -1864,6 +2372,11 @@ frame:SetScript("OnEvent", function(self, event, arg1)
 
         db.units = true
         db._v = 3
+    end
+    if db._v < 4 then
+
+        db.gossip = true
+        db._v = 4
     end
 
     HookTooltip(GameTooltip)
@@ -1931,6 +2444,10 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         db.quests = not db.quests
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r misiones en español: " .. status(db.quests))
         return
+    elseif msg == "dialogos" or msg == "diálogos" or msg == "gossip" then
+        db.gossip = not db.gossip
+        DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r diálogos de NPC en español: " .. status(db.gossip))
+        return
     elseif msg == "capturar" or msg == "capture" then
         db.capture = not db.capture
         if db.capture then
@@ -1951,6 +2468,10 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         out[#out + 1] = "título mostrado: [" .. tostring(title) .. "]"
         local id = title and ((AES.QuestTitleEN2ID and AES.QuestTitleEN2ID[title])
             or (AES.QuestTitleES2ID and AES.QuestTitleES2ID[title]))
+        if (not id or id == false) and title then
+            id = ResolveQuestIDByPanels(title)
+            if id then out[#out + 1] = "ID por TEXTO (cadena de título repetido)" end
+        end
         out[#out + 1] = "ID por título: " .. tostring(id)
         local qid = tonumber(GetQuestID and GetQuestID() or nil)
         if not qid or qid == 0 then qid = tonumber(id) end
@@ -2080,13 +2601,13 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         end)
         return
     elseif msg ~= "" then
-        DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r comandos: /ases hechizos | objetos | npcs | lineas | ambiental | logros | interfaz | refrescar")
+        DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r comandos: /ases hechizos | objetos | npcs | dialogos | lineas | ambiental | logros | interfaz | refrescar")
         return
     end
     DEFAULT_CHAT_FRAME:AddMessage(format(
-        "|cff33ff99AscensionES|r hechizos:%s objetos:%s npcs:%s líneas:%s ambiental:%s misiones:%s logros:%s interfaz:%s",
+        "|cff33ff99AscensionES|r hechizos:%s objetos:%s npcs:%s líneas:%s ambiental:%s misiones:%s diálogos:%s logros:%s interfaz:%s",
         status(db.spells), status(db.items), status(db.units), status(db.patterns), status(db.flavor),
-        status(db.quests), status(db.achievements), status(db.ui)))
+        status(db.quests), status(db.gossip), status(db.achievements), status(db.ui)))
 end
 
-AscensionES.__firma = "AES/2026-07-15/a21958b7acae5cd5/HideXs"
+AscensionES.__firma = "AES/2026-07-17/5e72a60cd2ebbd20/HideXs"
