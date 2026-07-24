@@ -93,7 +93,7 @@ AscensionES es **gratuito y siempre lo será**. Si te ha hecho disfrutar más de
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Colabora-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/hidexs)
 
-Cualquier aportación ayuda a seguir revisando textos y a cubrir el contenido nuevo que va saliendo. Y si no puedes o no te apetece, también está genial: usarlo, compartirlo y avisarme de los fallos que encuentres ayuda igual. 🙂
+Cualquier aportación ayuda a seguir revisando textos y a cubrir el contenido nuevo que va saliendo.
 
 ## 🖋️ Autoría
 
