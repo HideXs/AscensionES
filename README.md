@@ -47,6 +47,14 @@ Usa la [**herramienta de diagnóstico**](DIAGNOSTICO.md): un doble clic y te dic
 
 Abre una [Issue con el formulario de errores](../../issues/new/choose): te pedirá el nombre exacto, dónde aparece y una captura. Las correcciones se incorporan en la siguiente versión.
 
+## 🤝 Colabora con el proyecto
+
+AscensionES es **gratuito y siempre lo será**. Si te ha hecho disfrutar más del juego en tu idioma y quieres colaborar, puedes hacerlo aquí:
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Colabora-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/hidexs)
+
+Cualquier aportación ayuda a seguir revisando textos y a cubrir el contenido nuevo que va saliendo. Y si no puedes o no te apetece, también está genial: usarlo, compartirlo y avisarme de los fallos que encuentres ayuda igual. 🙂
+
 ## 🖋️ Autoría
 
 Traducción y addon creados por **HideXs** (2026). Cada release legítima incluye una firma de autoría verificable (v1.3.0: `AES/2026-07-17/5e72a60cd2ebbd20/HideXs`); desconfía de copias que no la lleven.
