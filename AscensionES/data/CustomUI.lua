@@ -188,4 +188,75 @@ AscensionES.CustomUI = {
     ["Ascension Seasonal"] = "Temporada de Ascension",
     ["Collections"] = "Colecciones",
     ["Trials & Challenges"] = "Pruebas y desafíos",
+
+    ["Dungeon Finder"] = "Buscador de mazmorras",
+    ["Random Dungeon"] = "Mazmorra aleatoria",
+    ["Random Classic Dungeon"] = "Mazmorra clásica aleatoria",
+    ["Using the Dungeon Finder to do a Random Dungeon will earn you extra rewards."] =
+        "Usar el Buscador de mazmorras para hacer una mazmorra aleatoria te dará recompensas adicionales.",
+    ["Random dungeons which you complete will earn you:"] =
+        "Las mazmorras aleatorias que completes te darán:",
+    ["Find a Group"] = "Buscar grupo",
+    ["Mythic+ Dungeons"] = "Mazmorras míticas+",
+
+    ["Quick Match"] = "Partida rápida",
+    ["Rated"] = "Puntuada",
+    ["Random Battlegrounds"] = "Campos de batalla aleatorios",
+    ["Arena Skirmish (Solo Queue)"] = "Escaramuza de arena (cola en solitario)",
+    ["Glory"] = "Gloria",
+    ["Glory Rank 1"] = "Rango de Gloria 1",
+    ["Current Best Rating"] = "Mejor puntuación actual",
+    ["Unranked"] = "Sin clasificar",
+    ["PvP Power"] = "Poder JcJ",
+
+    ["PvP Ruleset"] = "Reglas de PvP",
+    ["PvE Mode"] = "Modo PvE",
+    ["War Mode"] = "Modo Guerra",
+    ["High-Risk Mode"] = "Alto Riesgo",
+    ["Select"] = "Elegir",
+    ["A Safer Haven"] = "Refugio total",
+    ["A Safe Haven"] = "Refugio seguro",
+    ["Dungeon Diver"] = "Mazmorrero",
+    ["A Social World"] = "Mundo social",
+    ["The Risk of Reward"] = "Riesgo y botín",
+    ["Treasure Hunter"] = "Cazatesoros",
+    ["A Harsh World"] = "Mundo hostil",
+
+    ["You cannot attack or be attacked in World PvP Combat."] =
+        "No puedes atacar ni ser atacado en el combate PvP del mundo.",
+    ["Being slain in World PvP Combat will not cause you to drop any items."] =
+        "Morir en combate PvP del mundo no hará que sueltes ningún objeto.",
+    ["Obtain gear steadily from Dungeons, Raids, Battlegrounds or Arenas, without risking it all in the Open World."] =
+        "Consigue equipo de forma constante en mazmorras, bandas, campos de batalla o arenas, sin arriesgarlo todo en el mundo abierto.",
+    ["Players in either No-Risk rulesets will only see other No-Risk players.\nFlying mounts are allowed in No-Risk."] =
+        "Los jugadores de las reglas Sin Riesgo solo ven a otros jugadores Sin Riesgo.\nLas monturas voladoras están permitidas en Sin Riesgo.",
+    ["Players in either No-Risk rulesets will only see other No-Risk players. Flying mounts are allowed in No-Risk."] =
+        "Los jugadores de las reglas Sin Riesgo solo ven a otros jugadores Sin Riesgo. Las monturas voladoras están permitidas en Sin Riesgo.",
+    ["Players in High-Risk will only see other High-Risk players in the Open World!\nFlying Mounts are not allowed in the High-Risk Open World."] =
+        "¡Los jugadores de Alto Riesgo solo ven a otros jugadores de Alto Riesgo en el mundo abierto!\nLas monturas voladoras no están permitidas en el mundo abierto de Alto Riesgo.",
+    ["Players in High-Risk will only see other High-Risk players in the Open World! Flying Mounts are not allowed in the High-Risk Open World."] =
+        "¡Los jugadores de Alto Riesgo solo ven a otros jugadores de Alto Riesgo en el mundo abierto! Las monturas voladoras no están permitidas en el mundo abierto de Alto Riesgo.",
+    ["Players you slay in Open World PvP Combat can drop gold and a chest containing their loot, as do you. Battlegrounds and Arenas are still safe."] =
+        "Los jugadores que mates en combate PvP del mundo abierto pueden soltar oro y un cofre con su botín, igual que tú. Los campos de batalla y las arenas siguen siendo seguros.",
+    ["Players you slay in Open World PvP Combat can drop gold and a chest containing their loot, as do you.\nBattlegrounds and Arenas are still safe."] =
+        "Los jugadores que mates en combate PvP del mundo abierto pueden soltar oro y un cofre con su botín, igual que tú.\nLos campos de batalla y las arenas siguen siendo seguros.",
+
+    ["PvP"] = "PvP",
+
+    ["Path to Ascension"] = "Camino de la Ascensión",
+    ["Getting Started"] = "Primeros pasos",
+    ["Keyword Appendix"] = "Apéndice de términos",
+    ["Mentor System"] = "Sistema de mentores",
+    ["Learn to Play! Earn Rewards!"] = "¡Aprende a jugar! ¡Gana recompensas!",
+    ["Become a Mentor"] = "Conviértete en mentor",
+    ["Find a Mentor"] = "Encuentra un mentor",
+    ["Cannot become a Mentor"] = "Aún no puedes ser mentor",
+    ["You must complete the following Tutorials:"] = "Debes completar los siguientes tutoriales:",
+    ["View Category"] = "Ver categoría",
+    ["Enable Mentor Status"] = "Activar estado de mentor",
+    ["Collect Reward"] = "Recoger recompensa",
+    ["Start Quest"] = "Comenzar misión",
+    ["Filter"] = "Filtrar",
+
+    ["Custom"] = "Personalizados",
 }

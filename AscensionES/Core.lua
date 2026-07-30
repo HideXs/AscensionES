@@ -150,6 +150,20 @@ local function TryPairSet(fs, text, pairIndexes, pairsTable)
     return false
 end
 
+local function MatchPairSet(text, pairIndexes, pairsTable)
+    if not pairIndexes then return nil end
+    if type(pairIndexes) == "number" then
+        local pair = pairsTable[pairIndexes]
+        return pair and MatchPair(text, pair) or nil
+    end
+    for _, idx in ipairs(pairIndexes) do
+        local pair = pairsTable[idx]
+        local nt = pair and MatchPair(text, pair)
+        if nt then return nt end
+    end
+    return nil
+end
+
 local function TranslateBodyByPairs(tip, pairIndexes, pairsTable)
     if not pairIndexes then return end
     local name = tip:GetName()
@@ -162,6 +176,46 @@ local function TranslateBodyByPairs(tip, pairIndexes, pairsTable)
     end
     return false
 end
+
+local function PrefijoDe(texto, cuantas)
+    local s = texto:gsub("|c%x+", ""):gsub("|r", ""):gsub("|n", " ")
+    local p, n = {}, 0
+    for w in s:gmatch("%a+") do
+        n = n + 1
+        p[n] = w:lower()
+        if n == cuantas then break end
+    end
+    return table.concat(p, " ")
+end
+
+local function TranslateBodyByPrefix(tip)
+    local name = tip:GetName()
+    local hecho = false
+    for i = 2, tip:NumLines() do
+        local fs = _G[name .. "TextLeft" .. i]
+        local text = fs and fs:GetText()
+        if text and #text > 12 then
+
+            for cuantas = 8, 3, -1 do
+                local pref = PrefijoDe(text, cuantas)
+                if #pref >= 8 then
+                    local c = AES.DescByPrefix and AES.DescByPrefix[pref]
+                    if c and TryPairSet(fs, text, c, AES.DescPairs) then
+                        hecho = true
+                        break
+                    end
+                    c = AES.TipByPrefix and AES.TipByPrefix[pref]
+                    if c and TryPairSet(fs, text, c, AES.TipPairs) then
+                        hecho = true
+                        break
+                    end
+                end
+            end
+        end
+    end
+    return hecho
+end
+AES.TranslateBodyByPrefix = TranslateBodyByPrefix
 
 local function TranslateSpellWord(w)
     local map = AES.SpellNameEN2ES
@@ -380,6 +434,24 @@ local function TranslateTooltipLines(tip)
                         if changed then break end
                     end
                 end
+
+                if not changed and #text > 12 then
+                    for cuantas = 8, 3, -1 do
+                        local pref = PrefijoDe(text, cuantas)
+                        if #pref >= 8 then
+                            local c = AES.DescByPrefix and AES.DescByPrefix[pref]
+                            if c and TryPairSet(fs, text, c, AES.DescPairs) then
+                                changed = true
+                                break
+                            end
+                            c = AES.TipByPrefix and AES.TipByPrefix[pref]
+                            if c and TryPairSet(fs, text, c, AES.TipPairs) then
+                                changed = true
+                                break
+                            end
+                        end
+                    end
+                end
             end
             if not changed and db.patterns then
                 text = fs:GetText()
@@ -526,6 +598,7 @@ local function TranslateTooltipLines(tip)
 end
 
 local ApplyLinePatterns = TranslateTooltipLines
+AES.TranslateTooltipLines = TranslateTooltipLines
 
 local latePassTip, latePassElapsed, latePassShots
 local latePassDriver = CreateFrame("Frame")
@@ -584,6 +657,8 @@ local function OnSpellTooltip(tip)
             end
         end
     end
+
+    pcall(TranslateBodyByPrefix, tip)
 
     ApplyLinePatterns(tip)
     ScheduleLatePass(tip)
@@ -647,10 +722,20 @@ local function OnItemTooltip(tip)
                 local fs = _G[name .. "TextLeft" .. i]
                 local t = fs and fs:GetText()
                 if t and (t:find("^Use: ") or t:find("^Uso: ") or t:find("^Equip: ") or t:find("^Equipar: ")) then
+
+                    local pref, body = t:match("^(%a+:%s*)(.+)$")
                     for _, sid in ipairs(sIds) do
                         if (AES.TipByID[sid] and TryPairSet(fs, t, AES.TipByID[sid], AES.TipPairs))
                             or (AES.DescByID[sid] and TryPairSet(fs, t, AES.DescByID[sid], AES.DescPairs)) then
                             break
+                        end
+                        if body then
+                            local nt = MatchPairSet(body, AES.TipByID[sid], AES.TipPairs)
+                                or MatchPairSet(body, AES.DescByID[sid], AES.DescPairs)
+                            if nt then
+                                pcall(fs.SetText, fs, pref .. nt)
+                                break
+                            end
                         end
                     end
                     break
@@ -775,25 +860,133 @@ local function ApplyUIStrings()
 end
 
 function TranslateStaticText(t)
-    local es = (AES.CustomUI and AES.CustomUI[t]) or (AES.UIStringsByEN and AES.UIStringsByEN[t])
+    local es = (AES.CustomUI and AES.CustomUI[t])
+        or (AES.ServerUI and AES.ServerUI[t])
+        or (AES.UIStringsByEN and AES.UIStringsByEN[t])
     if es then return es end
+
+    local pre, cuerpo = t:match("^([%s]+)(.+)$")
+    if cuerpo and cuerpo ~= "" then
+        local esPre = TranslateStaticText(cuerpo)
+        if esPre then return pre .. esPre end
+    end
 
     local base, tail = t:match("^(.-)%s*(:?)%s*$")
     if base and base ~= t and base ~= "" then
-        es = (AES.CustomUI and AES.CustomUI[base]) or (AES.UIStringsByEN and AES.UIStringsByEN[base])
+        es = (AES.CustomUI and AES.CustomUI[base])
+            or (AES.ServerUI and AES.ServerUI[base])
+            or (AES.UIStringsByEN and AES.UIStringsByEN[base])
         if es then return es .. (tail or "") end
+    end
+
+    local c0, inner, r0 = t:match("^(|c%x%x%x%x%x%x%x%x)(.-)(|r)%s*$")
+    if inner and inner ~= "" and not inner:find("|c") then
+        local es2 = (AES.CustomUI and AES.CustomUI[inner])
+            or (AES.ServerUI and AES.ServerUI[inner])
+            or (AES.UIStringsByEN and AES.UIStringsByEN[inner])
+        if es2 then return c0 .. es2 .. r0 end
+    end
+
+    local p1, p2 = t:match("^Page (%d+) of (%d+)$")
+    if p1 then return "Página " .. p1 .. " de " .. p2 end
+
+    if AES.ServerUINoColor and t:find("|c", 1, true) then
+        local limpio = t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+        local es3 = AES.ServerUINoColor[limpio]
+        if es3 then return es3 end
+    end
+
+    if db and db.spells and AES.SpellNameEN2ES and #t >= 4 and t:match("^%u") then
+        local esSpell = AES.SpellNameEN2ES[t]
+        if esSpell and esSpell ~= t then return esSpell end
     end
     return nil
 end
+
+local LIVE_UI_FRAMES = { "PathToAscensionFrame", "AscensionLFGFrame",
+                         "AscensionPVEFrame", "AscensionPVPFrame",
+                         "AscensionRulesetFrame" }
+local liveScaled = setmetatable({}, { __mode = "k" })
+local function TranslateLiveSubtree(fr, depth)
+    if depth > 8 then return end
+    local ok, regions = pcall(function() return { fr:GetRegions() } end)
+    if ok and regions then
+        for _, r in ipairs(regions) do
+            if r.IsObjectType and r:IsObjectType("FontString") then
+                local t = r.GetText and r:GetText()
+                if t and t ~= "" then
+                    local es = TranslateStaticText(t)
+                    if es and es ~= t then pcall(r.SetText, r, es) end
+                end
+            end
+        end
+    end
+    local okc, children = pcall(function() return { fr:GetChildren() } end)
+    if okc and children then
+        for _, c in ipairs(children) do
+            if c.IsObjectType and c:IsObjectType("SimpleHTML") and not liveScaled[c] then
+                liveScaled[c] = true
+                pcall(c.SetScale, c, 0.9)
+            end
+            TranslateLiveSubtree(c, depth + 1)
+        end
+    end
+end
+local liveTicker = CreateFrame("Frame")
+local liveAcc = 0
+liveTicker:SetScript("OnUpdate", function(_, dt)
+    liveAcc = liveAcc + dt
+    if liveAcc < 0.75 then return end
+    liveAcc = 0
+    if not (db and db.ui) then return end
+    for _, fname in ipairs(LIVE_UI_FRAMES) do
+        local f = _G[fname]
+        if f and f.IsVisible and f:IsVisible() then
+            pcall(TranslateLiveSubtree, f, 0)
+        end
+    end
+end)
+
+local HookUIFS
+
+local watched = setmetatable({}, { __mode = "k" })
+
+local EXCLUDED_ROOTS = { CallBoardUI = true }
+local excludeCache = setmetatable({}, { __mode = "k" })
+local function FrameExcluded(obj)
+    if obj == nil then return false end
+    local cached = excludeCache[obj]
+    if cached ~= nil then return cached end
+    local cur, hops = obj, 0
+    while cur and hops < 14 do
+        local okn, nm = pcall(function() return cur.GetName and cur:GetName() end)
+        if okn and nm and EXCLUDED_ROOTS[nm] then
+            excludeCache[obj] = true
+            return true
+        end
+        local okp, par = pcall(function() return cur.GetParent and cur:GetParent() end)
+        cur = okp and par or nil
+        hops = hops + 1
+    end
+    excludeCache[obj] = false
+    return false
+end
+AES.FrameExcluded = FrameExcluded
 
 local function RetranslateStaticUI()
     if not db or not db.ui then return end
     local frame = EnumerateFrames()
     while frame do
+        if FrameExcluded(frame) then
+            frame = EnumerateFrames(frame)
+        else
 
         local protected = frame.IsProtected and select(1, frame:IsProtected())
         local forbidden = frame.IsForbidden and frame:IsForbidden()
-        if not protected and not forbidden then
+
+        local esEntrada = frame.IsObjectType and frame:IsObjectType("EditBox")
+        if not protected and not forbidden and not esEntrada then
+            local okvis, vis = pcall(function() return frame:IsVisible() end)
             local ok, regions = pcall(function() return { frame:GetRegions() } end)
             if ok and regions then
                 for _, r in ipairs(regions) do
@@ -803,23 +996,109 @@ local function RetranslateStaticUI()
                             local es = TranslateStaticText(t)
                             if es then
                                 pcall(r.SetText, r, es)
+                                watched[r] = true
                             end
                         end
+
+                        if okvis and vis and HookUIFS then pcall(HookUIFS, r) end
                     end
                 end
             end
         end
         frame = EnumerateFrames(frame)
+        end
     end
 end
 
-local function HookStaticPanels()
-    for _, name in ipairs({ "GameMenuFrame", "VideoOptionsFrame", "InterfaceOptionsFrame", "AchievementFrame", "SpellBookFrame" }) do
-        local f = _G[name]
-        if f and f.HookScript and f:HasScript("OnShow") then
-            f:HookScript("OnShow", RetranslateStaticUI)
+local uiTick, uiAcc = CreateFrame("Frame"), 0
+uiTick:SetScript("OnUpdate", function(_, dt)
+    if not (db and db.ui) then return end
+    uiAcc = uiAcc + dt
+    if uiAcc < 0.5 then return end
+    uiAcc = 0
+    if InCombatLockdown and InCombatLockdown() then return end
+    for fs in pairs(watched) do
+        if FrameExcluded(fs) then
+            watched[fs] = nil
+        else
+            local ok, t = pcall(function() return fs:GetText() end)
+            if ok and type(t) == "string" and t ~= "" then
+                local es = TranslateStaticText(t)
+                if es and es ~= t then pcall(fs.SetText, fs, es) end
+            end
         end
     end
+end)
+
+local staticPassTimer
+local function StaticPassSoon()
+    RetranslateStaticUI()
+    if not staticPassTimer then staticPassTimer = CreateFrame("Frame") end
+    local elapsed = 0
+    staticPassTimer:SetScript("OnUpdate", function(self, dt)
+        elapsed = elapsed + dt
+        if elapsed < 0.5 then return end
+        self:SetScript("OnUpdate", nil)
+        RetranslateStaticUI()
+    end)
+end
+
+local staticHooked = {}
+local function HookStaticPanels()
+    for _, name in ipairs({ "GameMenuFrame", "VideoOptionsFrame", "InterfaceOptionsFrame",
+                            "AchievementFrame", "SpellBookFrame",
+
+                            "AscensionLFGFrame", "AscensionPVEFrame", "AscensionPVPFrame",
+                            "AscensionRulesetFrame", "PathToAscensionFrame",
+                            "WarmodeMapFrame", "AscensionWeeklyKeystoneFrame",
+                            "ChannelFrame",
+
+                            "CharacterAdvancement", "Collections",
+                            "WildCardRapidRollingFrame", "DraftHelpFrame",
+                            "SkillCardsFrame", "VanityCollectionFrame" }) do
+        local f = _G[name]
+        if f and not staticHooked[name] and f.HookScript and f:HasScript("OnShow") then
+            staticHooked[name] = true
+            f:HookScript("OnShow", StaticPassSoon)
+        end
+    end
+end
+
+local staticWatcher = CreateFrame("Frame")
+staticWatcher:RegisterEvent("ADDON_LOADED")
+staticWatcher:RegisterEvent("PLAYER_ENTERING_WORLD")
+staticWatcher:SetScript("OnEvent", function() pcall(HookStaticPanels) end)
+
+if type(C_Tutorial) == "table" then
+    local function TutMapStr(v)
+        if type(v) ~= "string" or v == "" then return v end
+        local es = TranslateStaticText(v)
+        if es then return es end
+        if db and db.capture and #v >= 3 and v:find("%a")
+            and (v:find(" ") or #v >= 12) then
+            db.uicaptured = db.uicaptured or {}
+            db.uicaptured[v] = true
+        end
+        return v
+    end
+    for _, fname in ipairs({ "GetKeywordAtIndex", "GetKeywordInfo",
+                             "GetTutorialAtIndex", "GetTutorialByID",
+                             "GetTutorialDisplay", "GetCategoryInfo",
+                             "GetObjectiveInfo", "GetMentorSpecializationInfo" }) do
+        local orig = C_Tutorial[fname]
+        if type(orig) == "function" then
+            C_Tutorial[fname] = function(...)
+                if db and not db.ui then return orig(...) end
+                local a, b, c, d, e, f, g, h = orig(...)
+                return TutMapStr(a), TutMapStr(b), TutMapStr(c), TutMapStr(d),
+                    TutMapStr(e), TutMapStr(f), TutMapStr(g), TutMapStr(h)
+            end
+        end
+    end
+end
+
+function TranslateStaticTextProbe(t)
+    return TranslateStaticText(t)
 end
 
 local function TranslateAchievementFS(fs, id, esTable, enTable)
@@ -1323,9 +1602,18 @@ local function QuestRenderES(t)
     return t
 end
 
+local function ResolveGender(t)
+    local male = not (UnitSex and UnitSex("player") == 3)
+    return (t:gsub("<([^<>/]+)/([^<>/]+)>", function(m, f)
+        local pick = male and m or f
+        return (pick:gsub("^%s+", ""):gsub("%s+$", ""))
+    end))
+end
+
 local function GuardEq(shown, guardEN)
-    return guardEN ~= nil
-        and QuestNormalizeShown(shown) == CollapseWS(guardEN:gsub("\r", ""))
+    if guardEN == nil then return false end
+    local guarda = CollapseWS(ResolveGender(guardEN:gsub("\r", "")))
+    return QuestNormalizeShown(shown) == guarda
 end
 
 local function ResolveQuestIDByShown(title, shown, fields)
@@ -1696,7 +1984,9 @@ AES.GossipLookup = GossipLookup
 
 local capCount = {}
 local function GossipCapture(store, t)
-    if not db or gossipApplied[t] or #t > 3000 then return end
+
+    if not (db and db.harvest) then return end
+    if gossipApplied[t] or #t > 3000 then return end
     db[store] = db[store] or {}
     if db[store][t] then return end
     if capCount[store] == nil then
@@ -1851,12 +2141,21 @@ local function WrapQuestGetter(name, field)
 
             local t = origGetTitleText and origGetTitleText()
             local rid = t and ResolveQuestIDByShown(t, en, { field })
-            qd = rid and AES.QuestData and AES.QuestData[rid]
+            if rid then id = rid end
+            qd = id and AES.QuestData and AES.QuestData[id]
             es = qd and qd[field]
             guard = qd and qd[field .. "EN"]
         end
         if es and guard and GuardEq(en, guard) then
             return QuestRenderES(es)
+        end
+
+        if db and db.harvest and id and qd and es then
+            db.qdrift = db.qdrift or {}
+            db.qdrift[id] = db.qdrift[id] or {}
+            if db.qdrift[id][field] == nil then
+                db.qdrift[id][field] = en
+            end
         end
         return en
     end
@@ -1890,20 +2189,26 @@ for _, name in ipairs({ "GetGossipText", "GetGreetingText" }) do
     end
 end
 
+local function TranslateTitleReturns(...)
+    local n = select("#", ...)
+    if not (db and db.quests and AES.QuestTitleEN2ES) then
+        return ...
+    end
+    local r = { ... }
+    for i = 1, n do
+        if type(r[i]) == "string" then
+            local es = AES.QuestTitleEN2ES[r[i]]
+            if es then r[i] = es end
+        end
+    end
+    return unpack(r, 1, n)
+end
+
 local function WrapTitleList(fname)
     local orig = _G[fname]
     if type(orig) ~= "function" then return end
     _G[fname] = function(...)
-        local r = { orig(...) }
-        if db and db.quests and AES.QuestTitleEN2ES then
-            for i = 1, #r do
-                if type(r[i]) == "string" then
-                    local es = AES.QuestTitleEN2ES[r[i]]
-                    if es then r[i] = es end
-                end
-            end
-        end
-        return unpack(r)
+        return TranslateTitleReturns(orig(...))
     end
 end
 WrapTitleList("GetGossipAvailableQuests")
@@ -1926,18 +2231,25 @@ WrapTitleGetter("GetActiveTitle")
 
 local uiFSHooked = setmetatable({}, { __mode = "k" })
 local inUIFSHook = false
-local function HookUIFS(fs)
+function HookUIFS(fs)
     if uiFSHooked[fs] or not fs.SetText then return end
     uiFSHooked[fs] = true
-    hooksecurefunc(fs, "SetText", function(self, txt)
-        if inUIFSHook or not (db and db.ui) or type(txt) ~= "string" then return end
-        local es = TranslateStaticText(txt)
-        if es and es ~= txt then
-            inUIFSHook = true
-            pcall(self.SetText, self, es)
-            inUIFSHook = false
+
+    for _, metodo in ipairs({ "SetText", "SetFormattedText" }) do
+        if fs[metodo] then
+            pcall(hooksecurefunc, fs, metodo, function(self)
+                if inUIFSHook or not (db and db.ui) then return end
+                local txt = self.GetText and self:GetText()
+                if type(txt) ~= "string" or txt == "" then return end
+                local es = TranslateStaticText(txt)
+                if es and es ~= txt then
+                    inUIFSHook = true
+                    pcall(self.SetText, self, es)
+                    inUIFSHook = false
+                end
+            end)
         end
-    end)
+    end
 end
 
 local function WalkUIExact(root, depth, hookFS)
@@ -1989,6 +2301,75 @@ if CharacterFrame and CharacterFrame.HookScript then
     CharacterFrame:HookScript("OnShow", TranslateCharacterFrame)
 end
 AES.TranslateCharacterFrame = TranslateCharacterFrame
+
+local deepTimers = setmetatable({}, { __mode = "k" })
+local function DeepPass(panel)
+    if not (db and db.ui and panel) then return end
+    pcall(WalkUIExact, panel, 0, true)
+    local t = deepTimers[panel]
+    if not t then
+        t = CreateFrame("Frame")
+        deepTimers[panel] = t
+    end
+    local elapsed, shots = 0, 0
+    t:SetScript("OnUpdate", function(self, dt)
+        elapsed = elapsed + dt
+        if elapsed < 0.4 then return end
+        elapsed = 0
+        shots = shots + 1
+        local ok, vis = pcall(function() return panel:IsVisible() end)
+        if ok and vis then pcall(WalkUIExact, panel, 0, true) end
+        if shots >= 3 then self:SetScript("OnUpdate", nil) end
+    end)
+end
+
+local vivos = setmetatable({}, { __mode = "k" })
+local vivosTick, vivosAcc = CreateFrame("Frame"), 0
+vivosTick:SetScript("OnUpdate", function(_, dt)
+    if not (db and db.ui) then return end
+    if not next(vivos) then return end
+    vivosAcc = vivosAcc + dt
+    if vivosAcc < 0.5 then return end
+    vivosAcc = 0
+    if InCombatLockdown and InCombatLockdown() then return end
+    for panel in pairs(vivos) do
+        local ok, vis = pcall(function() return panel:IsVisible() end)
+        if ok and vis then pcall(WalkUIExact, panel, 0, true) end
+    end
+end)
+
+local serverDeep = {}
+local function HookServerPanelsDeep()
+    if not (db and db.ui) then return end
+    local f, n = EnumerateFrames(), 0
+    while f and n < 60000 do
+        n = n + 1
+        local ok, nm = pcall(f.GetName, f)
+        if ok and nm and not serverDeep[nm]
+            and (nm:find("Trial") or nm:find("Support") or nm:find("Customer")
+                or nm:find("Profession") or nm:find("Challenge") or nm:find("Gamemode")
+                or nm:find("Recovery") or nm:find("^Ascension")
+
+                or nm:find("CharacterAdvancement") or nm:find("Collections")
+                or nm:find("WildCard") or nm:find("SkillCard")
+                or nm:find("Vanity") or nm:find("Draft")) then
+            serverDeep[nm] = true
+            if f.HookScript and f.HasScript and f:HasScript("OnShow") then
+                pcall(f.HookScript, f, "OnShow", function(self) DeepPass(self) end)
+            end
+            vivos[f] = true
+            local okv, vis = pcall(function() return f:IsVisible() end)
+            if okv and vis then DeepPass(f) end
+        end
+        f = EnumerateFrames(f)
+    end
+end
+AES.HookServerPanelsDeep = HookServerPanelsDeep
+
+local deepWatcher = CreateFrame("Frame")
+deepWatcher:RegisterEvent("ADDON_LOADED")
+deepWatcher:RegisterEvent("PLAYER_ENTERING_WORLD")
+deepWatcher:SetScript("OnEvent", function() pcall(HookServerPanelsDeep) end)
 
 local plateElapsed = 0
 local plateScanner = CreateFrame("Frame")
@@ -2219,6 +2600,8 @@ end
 
 local function BroadcastVersion(chan)
     if not SendAddonMessage then return end
+
+    if myVersionStr:match("%a$") then return end
     local now = GetTime()
     if lastSent[chan] and now - lastSent[chan] < 30 then return end
     lastSent[chan] = now
@@ -2448,71 +2831,6 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         db.gossip = not db.gossip
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r diálogos de NPC en español: " .. status(db.gossip))
         return
-    elseif msg == "capturar" or msg == "capture" then
-        db.capture = not db.capture
-        if db.capture then
-            DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r CAPTURADOR ACTIVADO: pasa el ratón por todos los tooltips que quieras registrar (stats, paneles...). Cuando termines: /ases capturar para parar y /reload para guardar.")
-        else
-            local n = 0
-            for _ in pairs(db.captured or {}) do n = n + 1 end
-            DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r capturador parado: " .. n .. " textos registrados. Haz /reload para volcarlos al disco.")
-        end
-        return
-    elseif msg == "mision" then
-
-        local out = {}
-        out[#out + 1] = "GetQuestID: " .. tostring(GetQuestID and (GetQuestID() or "nil") or "NO EXISTE")
-        out[#out + 1] = "questLog: " .. tostring(QuestInfoFrame and QuestInfoFrame.questLog)
-        local th = _G["QuestInfoTitleHeader"]
-        local title = th and th.GetText and th:GetText() or "(sin título)"
-        out[#out + 1] = "título mostrado: [" .. tostring(title) .. "]"
-        local id = title and ((AES.QuestTitleEN2ID and AES.QuestTitleEN2ID[title])
-            or (AES.QuestTitleES2ID and AES.QuestTitleES2ID[title]))
-        if (not id or id == false) and title then
-            id = ResolveQuestIDByPanels(title)
-            if id then out[#out + 1] = "ID por TEXTO (cadena de título repetido)" end
-        end
-        out[#out + 1] = "ID por título: " .. tostring(id)
-        local qid = tonumber(GetQuestID and GetQuestID() or nil)
-        if not qid or qid == 0 then qid = tonumber(id) end
-        if qid and AES.QuestData[qid] then
-            local qd = AES.QuestData[qid]
-            out[#out + 1] = "datos: SÍ (d=" .. tostring(qd.d ~= nil) .. " o=" .. tostring(qd.o ~= nil)
-                .. " p=" .. tostring(qd.p ~= nil) .. " c=" .. tostring(qd.c ~= nil) .. ")"
-            local checks = {
-                { "desc", "QuestInfoDescriptionText", qd.dEN },
-                { "obj", "QuestInfoObjectivesText", qd.oEN },
-                { "entrega", "QuestInfoRewardText", qd.cEN },
-            }
-            for _, ck in ipairs(checks) do
-                local fs = _G[ck[2]]
-                local shown = fs and fs.GetText and fs:GetText()
-                if shown and shown ~= "" and ck[3] then
-                    local a = QuestNormalizeShown(shown)
-                    local b = CollapseWS(ck[3]:gsub("\r", ""))
-                    out[#out + 1] = "guarda " .. ck[1] .. ": " .. (a == b and "CASA" or "NO casa")
-                    if a ~= b then
-                        local n = math.min(#a, #b)
-                        local i = n + 1
-                        for j = 1, n do
-                            if a:sub(j, j) ~= b:sub(j, j) then
-                                i = j
-                                break
-                            end
-                        end
-                        out[#out + 1] = "  difiere en " .. i .. ": vivo=[" ..
-                            a:sub(math.max(1, i - 15), i + 25):gsub("|", "||") .. "] datos=[" ..
-                            b:sub(math.max(1, i - 15), i + 25):gsub("|", "||") .. "]"
-                    end
-                end
-            end
-        else
-            out[#out + 1] = "datos: NO para id " .. tostring(qid)
-        end
-        for _, l in ipairs(out) do
-            DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AES misión|r " .. l)
-        end
-        return
     elseif msg == "interfaz" or msg == "ui" then
         db.ui = not db.ui
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r interfaz cambiada: haz /reload para aplicar")
@@ -2535,71 +2853,6 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         RetranslateStaticUI()
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r interfaz estática retraducida")
         return
-    elseif msg == "traduce" then
-
-        DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r sonda-traduce armada: abre el tooltip y mantenlo 4 s...")
-        local probe = CreateFrame("Frame")
-        local elapsed = 0
-        probe:SetScript("OnUpdate", function(self, dt)
-            elapsed = elapsed + dt
-            if elapsed < 4 then return end
-            self:SetScript("OnUpdate", nil)
-            if not GameTooltip:IsVisible() then
-                DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AES|r el tooltip no estaba visible")
-                return
-            end
-            local list = CollectTooltipFontStrings(GameTooltip)
-            DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AES|r FontStrings recogidos: " .. #list)
-            for i, fs in ipairs(list) do
-                if i <= 8 then
-                    local t = fs:GetText() or ""
-                    t = t:gsub("|", "||"):sub(1, 55)
-                    DEFAULT_CHAT_FRAME:AddMessage("  " .. i .. ": " .. t)
-                end
-            end
-            local ok, err = pcall(TranslateTooltipLines, GameTooltip)
-            DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AES|r pasada manual: " .. (ok and "ejecutada" or ("ERROR: " .. tostring(err))))
-        end)
-        return
-    elseif msg:match("^volcar") then
-
-        local needle = msg:match("^volcar%s+(.+)$") or "Deals"
-        DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r sonda armada: pasa el ratón por el tooltip — volcado en 4 s...")
-        local probe = CreateFrame("Frame")
-        local elapsed = 0
-        probe:SetScript("OnUpdate", function(self, dt)
-            elapsed = elapsed + dt
-            if elapsed < 4 then return end
-            self:SetScript("OnUpdate", nil)
-            local found = 0
-            local frame = EnumerateFrames()
-            while frame do
-                local ok, regions = pcall(function() return { frame:GetRegions() } end)
-                if ok and regions then
-                    for _, r in ipairs(regions) do
-                        if r and r.IsObjectType and r:IsObjectType("FontString")
-                            and r.IsVisible and r:IsVisible() then
-                            local t = r:GetText()
-                            if t and t:lower():find(needle, 1, true) then
-                                found = found + 1
-                                local f, chain = frame, {}
-                                while f and #chain < 6 do
-                                    chain[#chain + 1] = (f.GetName and f:GetName()) or "(anónimo)"
-                                    f = f.GetParent and f:GetParent()
-                                end
-                                DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AES sonda|r " .. found .. ": " .. table.concat(chain, " < "))
-                                local shown = t:gsub("|", "||"):gsub("\n", "\\n"):gsub("\r", "\\r")
-                                if #shown > 150 then shown = shown:sub(1, 150) .. "..." end
-                                DEFAULT_CHAT_FRAME:AddMessage("    texto crudo: [" .. shown .. "]")
-                            end
-                        end
-                    end
-                end
-                frame = EnumerateFrames(frame)
-            end
-            DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AES sonda|r fin: " .. found .. " coincidencias de '" .. needle .. "'")
-        end)
-        return
     elseif msg ~= "" then
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99AscensionES|r comandos: /ases hechizos | objetos | npcs | dialogos | lineas | ambiental | logros | interfaz | refrescar")
         return
@@ -2610,4 +2863,4 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         status(db.quests), status(db.gossip), status(db.achievements), status(db.ui)))
 end
 
-AscensionES.__firma = "AES/2026-07-17/5e72a60cd2ebbd20/HideXs"
+AscensionES.__firma = "AES/2026-07-31/6f00bd50aa6809c7/HideXs"
