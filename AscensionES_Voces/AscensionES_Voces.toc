@@ -1,0 +1,14 @@
+## Interface: 30300
+## Title: AscensionES |cff33ff99Voces|r
+## Notes: Voz en off en español para las misiones (narración sintética)
+## Author: HideXs
+## Version: 1.0.1
+## Dependencies: AscensionES
+## SavedVariables: AscensionESVocesDB
+
+Parte1.lua
+Parte2.lua
+Parte3.lua
+Parte4.lua
+Index.lua
+Voces.lua
