@@ -2,6 +2,11 @@ AscensionES = AscensionES or {}
 
 AscensionES.CustomUI = {
 
+    ["One-Handed Axes"] = "Hachas de una mano",
+    ["One-Handed Maces"] = "Mazas de una mano",
+    ["One-Handed Swords"] = "Espadas de una mano",
+    ["Fishing Poles"] = "Cañas de pescar",
+
     ["Hold Shift to Compare"] = "Mantén Mayús para comparar",
 
     ["Character Info"] = "Info del personaje",

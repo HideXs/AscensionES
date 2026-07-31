@@ -628,6 +628,24 @@ local function ScheduleLatePass(tip)
     end
 end
 
+local reshowGuard = false
+local reshowQueue = setmetatable({}, { __mode = "k" })
+local reshowDriver = CreateFrame("Frame")
+reshowDriver:SetScript("OnUpdate", function()
+    if not next(reshowQueue) then return end
+    reshowGuard = true
+    for tip in pairs(reshowQueue) do
+        reshowQueue[tip] = nil
+        local ok, vis = pcall(tip.IsVisible, tip)
+        if ok and vis then pcall(tip.Show, tip) end
+    end
+    reshowGuard = false
+end)
+
+local function ReshowSoon(tip)
+    if tip and tip.IsVisible then reshowQueue[tip] = true end
+end
+
 local function OnSpellTooltip(tip)
     if not db or not db.spells then return end
     local _, _, spellID = tip:GetSpell()
@@ -662,7 +680,7 @@ local function OnSpellTooltip(tip)
 
     ApplyLinePatterns(tip)
     ScheduleLatePass(tip)
-    tip:Show()
+    ReshowSoon(tip)
 end
 
 local function OnAuraTooltip(tip, unit, index, filter)
@@ -687,7 +705,7 @@ local function OnAuraTooltip(tip, unit, index, filter)
     end
 
     ApplyLinePatterns(tip)
-    tip:Show()
+    ReshowSoon(tip)
 end
 
 local function OnItemTooltip(tip)
@@ -767,7 +785,7 @@ local function OnItemTooltip(tip)
 
     ApplyLinePatterns(tip)
     ScheduleLatePass(tip)
-    tip:Show()
+    ReshowSoon(tip)
 end
 
 local function OnUnitTooltip(tip)
@@ -795,7 +813,7 @@ local function OnUnitTooltip(tip)
     end
 
     ApplyLinePatterns(tip)
-    tip:Show()
+    ReshowSoon(tip)
 end
 
 local function TranslateShortText(text)
@@ -952,6 +970,8 @@ local HookUIFS
 local watched = setmetatable({}, { __mode = "k" })
 
 local EXCLUDED_ROOTS = { CallBoardUI = true }
+
+local EXCLUDED_PAT = { "AuctionFilterButton" }
 local excludeCache = setmetatable({}, { __mode = "k" })
 local function FrameExcluded(obj)
     if obj == nil then return false end
@@ -963,6 +983,14 @@ local function FrameExcluded(obj)
         if okn and nm and EXCLUDED_ROOTS[nm] then
             excludeCache[obj] = true
             return true
+        end
+        if okn and nm then
+            for _, pat in ipairs(EXCLUDED_PAT) do
+                if nm:find(pat, 1, true) then
+                    excludeCache[obj] = true
+                    return true
+                end
+            end
         end
         local okp, par = pcall(function() return cur.GetParent and cur:GetParent() end)
         cur = okp and par or nil
@@ -1139,7 +1167,7 @@ local function AchTooltipPass(tip, achID)
             fsr:SetText(AES.AchCritEN2ES[textr])
         end
     end
-    tip:Show()
+    ReshowSoon(tip)
 end
 
 local function HookAchievementUI()
@@ -1217,7 +1245,7 @@ local function HookAchievementLinks()
                 break
             end
         end
-        tip:Show()
+        ReshowSoon(tip)
     end)
 end
 
@@ -1305,6 +1333,18 @@ local function TradeSkillWord(t)
         or (AES.UIStringsByEN and AES.UIStringsByEN[t])
 end
 
+local function TradeSkillSplit(t)
+    local pre, core, post = t:match("^(|c%x%x%x%x%x%x%x%x)(.-)(|r)$")
+    if not core then pre, core, post = "", t, "" end
+    local base, count = core:match("^(.-)%s*(%[%d+%])$")
+    base = base or core
+    base = base:gsub("^%s+", ""):gsub("%s+$", "")
+    return pre, base, count, post
+end
+local function TradeSkillRewrap(pre, es, count, post)
+    return pre .. es .. (count and (" " .. count) or "") .. post
+end
+
 local function TranslateTradeSkillFrame()
 
     local title = _G["TradeSkillFrameTitleText"]
@@ -1319,10 +1359,12 @@ local function TranslateTradeSkillFrame()
         if b and b.GetText then
             local t = b:GetText()
             if t and t ~= "" then
-                local base, count = t:match("^(.-)%s*(%[%d+%])$")
-                base = base or t
+                local pre, base, count, post = TradeSkillSplit(t)
                 local es = TradeSkillWord(base)
-                if es then pcall(b.SetText, b, es .. (count and (" " .. count) or "")) end
+                if es then
+                    local nt = TradeSkillRewrap(pre, es, count, post)
+                    if nt ~= t then pcall(b.SetText, b, nt) end
+                end
             end
         end
     end
@@ -1372,31 +1414,80 @@ local function TranslateTradeSkillDetail()
     end
 end
 
+local tsBtnHooked = setmetatable({}, { __mode = "k" })
+local tsBtnInHook = false
+local function TradeSkillButtonRetrans(b)
+    if tsBtnInHook or not (db and db.spells) then return end
+    local t = b.GetText and b:GetText()
+    if not t or t == "" then return end
+
+    local pre, base, count, post = TradeSkillSplit(t)
+    local es = TradeSkillWord(base)
+    if es then
+        local nt = TradeSkillRewrap(pre, es, count, post)
+        if nt ~= t then
+            tsBtnInHook = true
+            pcall(b.SetText, b, nt)
+            tsBtnInHook = false
+        end
+    end
+end
+local function HookTradeSkillButtons()
+    for i = 1, 30 do
+        local b = _G["TradeSkillSkill" .. i]
+        if b and not tsBtnHooked[b] and b.SetText then
+            tsBtnHooked[b] = true
+            pcall(hooksecurefunc, b, "SetText", TradeSkillButtonRetrans)
+        end
+    end
+end
+AES.HookTradeSkillButtons = HookTradeSkillButtons
+
 local function HookTradeSkillUI()
     if type(TradeSkillFrame_Update) ~= "function" then return end
     hooksecurefunc("TradeSkillFrame_Update", function()
         if db and db.spells then
+            HookTradeSkillButtons()
             TranslateTradeSkillFrame()
             TranslateTradeSkillDetail()
         end
     end)
     if type(TradeSkillFrame_SetSelection) == "function" then
         hooksecurefunc("TradeSkillFrame_SetSelection", function()
-            if db and db.spells then TranslateTradeSkillDetail() end
+
+            if db and db.spells then
+                TranslateTradeSkillFrame()
+                TranslateTradeSkillDetail()
+            end
         end)
     end
     if TradeSkillFrame and TradeSkillFrame.HookScript and TradeSkillFrame:HasScript("OnShow") then
-        TradeSkillFrame:HookScript("OnShow", RetranslateStaticUI)
+        TradeSkillFrame:HookScript("OnShow", function()
+            RetranslateStaticUI()
+            if db and db.spells then HookTradeSkillButtons() end
+        end)
     end
 end
 
 AES.TranslateTradeSkillFrame = TranslateTradeSkillFrame
 AES.TranslateTradeSkillDetail = TranslateTradeSkillDetail
 
+local tsTick, tsAcc = CreateFrame("Frame"), 0
+tsTick:SetScript("OnUpdate", function(_, dt)
+    if not (db and db.spells) then return end
+
+    local f = TradeSkillFrame or _G["TradeSkillSkill1"]
+    local ok, vis = pcall(function() return f and f.IsVisible and f:IsVisible() end)
+    if not (ok and vis) then return end
+    tsAcc = tsAcc + dt
+    if tsAcc < 0.12 then return end
+    tsAcc = 0
+    pcall(TranslateTradeSkillFrame)
+    pcall(TranslateTradeSkillDetail)
+end)
+
 local function HookTooltip(tip)
     if not tip then return end
-
-    local inReshow = false
 
     local function IsCharPanelTooltip(t)
         local o = t.GetOwner and t:GetOwner()
@@ -1430,7 +1521,7 @@ local function HookTooltip(tip)
     end
     if tip:HasScript("OnShow") then
         tip:HookScript("OnShow", function(t)
-            if not db or inReshow then return end
+            if not db or reshowGuard then return end
             CaptureTip(t)
             if IsCharPanelTooltip(t) then return end
 
@@ -1451,9 +1542,7 @@ local function HookTooltip(tip)
             TranslateTooltipLines(t)
             ScheduleLatePass(t)
 
-            inReshow = true
-            pcall(t.Show, t)
-            inReshow = false
+            ReshowSoon(t)
         end)
     end
     if tip:HasScript("OnTooltipSetSpell") then
@@ -2252,10 +2341,15 @@ function HookUIFS(fs)
     end
 end
 
-local function WalkUIExact(root, depth, hookFS)
+local function WalkUIExact(root, depth, hookFS, skip)
     if not (root and root.GetRegions and root.GetChildren) then return end
     depth = depth or 0
     if depth > 7 then return end
+
+    if skip then
+        local okn, nm = pcall(function() return root.GetName and root:GetName() end)
+        if okn and nm and skip(nm) then return end
+    end
     for _, r in ipairs({ root:GetRegions() }) do
         if r.IsObjectType and r:IsObjectType("FontString") then
             local t = r.GetText and r:GetText()
@@ -2265,9 +2359,14 @@ local function WalkUIExact(root, depth, hookFS)
         end
     end
     for _, c in ipairs({ root:GetChildren() }) do
-        WalkUIExact(c, depth + 1, hookFS)
+        WalkUIExact(c, depth + 1, hookFS, skip)
     end
 end
+
+local function SkipAuctionFilters(nm)
+    return nm:find("AuctionFilterButton", 1, true) ~= nil
+end
+AES.SkipAuctionFilters = SkipAuctionFilters
 
 local charDelay
 local function TranslateCharacterFrame()
@@ -2352,7 +2451,9 @@ local function HookServerPanelsDeep()
 
                 or nm:find("CharacterAdvancement") or nm:find("Collections")
                 or nm:find("WildCard") or nm:find("SkillCard")
-                or nm:find("Vanity") or nm:find("Draft")) then
+                or nm:find("Vanity") or nm:find("Draft")
+
+                or nm:find("HelpMenu")) then
             serverDeep[nm] = true
             if f.HookScript and f.HasScript and f:HasScript("OnShow") then
                 pcall(f.HookScript, f, "OnShow", function(self) DeepPass(self) end)
@@ -2370,6 +2471,193 @@ local deepWatcher = CreateFrame("Frame")
 deepWatcher:RegisterEvent("ADDON_LOADED")
 deepWatcher:RegisterEvent("PLAYER_ENTERING_WORLD")
 deepWatcher:SetScript("OnEvent", function() pcall(HookServerPanelsDeep) end)
+
+local function AuctionRowES(index, t)
+    local pre, core, post = t:match("^(|c%x%x%x%x%x%x%x%x)(.-)(|r)$")
+    if not core then pre, core, post = "", t, "" end
+    local esName
+    local offset = (FauxScrollFrame_GetOffset and BrowseScrollFrame
+        and FauxScrollFrame_GetOffset(BrowseScrollFrame)) or 0
+    local link = GetAuctionItemLink and GetAuctionItemLink("list", offset + index)
+    local id = link and tonumber(link:match("item:(%d+)"))
+    if id and AES.ItemName and AES.ItemName[id] then
+        local enGuard = AES.ItemNameEN and AES.ItemNameEN[id]
+        if not enGuard or enGuard == core then esName = AES.ItemName[id] end
+    end
+    if not esName then esName = AES.ItemNameEN2ES and AES.ItemNameEN2ES[core] end
+    if esName then return pre .. esName .. post end
+    return nil
+end
+
+local function TranslateAuctionRows()
+    if not (db and db.items) then return end
+    for i = 1, 20 do
+        local fs = _G["BrowseButton" .. i .. "Name"]
+        if fs and fs.GetText then
+            local ok, t = pcall(fs.GetText, fs)
+            if ok and type(t) == "string" and t ~= "" then
+                local es = AuctionRowES(i, t)
+                if es and es ~= t then pcall(fs.SetText, fs, es) end
+            end
+        end
+    end
+end
+
+local function CatFontString(b)
+    if not b then return nil end
+    local fs = b.GetFontString and b:GetFontString()
+    if fs then return fs end
+    local nm = b.GetName and b:GetName()
+    return nm and _G[nm .. "NormalText"] or nil
+end
+
+local AUC_CAT_FIX = {
+    ["Mail"] = "Malla",
+    ["Head"] = "Cabeza", ["Neck"] = "Cuello", ["Shoulder"] = "Hombros",
+    ["Shirt"] = "Camisa", ["Chest"] = "Pecho", ["Waist"] = "Cintura",
+    ["Legs"] = "Piernas", ["Feet"] = "Pies", ["Wrist"] = "Muñecas",
+    ["Hands"] = "Manos", ["Finger"] = "Dedo", ["Trinket"] = "Abalorio",
+    ["Back"] = "Espalda", ["Tabard"] = "Tabardo", ["Robe"] = "Túnica",
+}
+local auOverlay = setmetatable({}, { __mode = "k" })
+local function CatOverlay(b)
+    local orig = CatFontString(b)
+    if not orig or not b.CreateFontString then return end
+    local ov = auOverlay[b]
+    if not ov then
+        ov = b:CreateFontString(nil, "OVERLAY")
+        local fo = orig.GetFontObject and orig:GetFontObject()
+        if fo then
+            pcall(ov.SetFontObject, ov, fo)
+        elseif orig.GetFont then
+            local f, s, fl = orig:GetFont()
+            if f then pcall(ov.SetFont, ov, f, s, fl) end
+        end
+        pcall(ov.SetAllPoints, ov, orig)
+        local okj, j = pcall(orig.GetJustifyH, orig)
+        if okj and j then pcall(ov.SetJustifyH, ov, j) end
+        auOverlay[b] = ov
+    end
+    local ok, t = pcall(orig.GetText, orig)
+    if not ok or type(t) ~= "string" or t == "" then
+        pcall(orig.SetAlpha, orig, 1); ov:Hide(); return
+    end
+
+    local clean = t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local fromFix = AUC_CAT_FIX[t] or AUC_CAT_FIX[clean]
+    local es = fromFix or TranslateStaticText(t)
+    if es and es ~= t then
+        pcall(ov.SetText, ov, es)
+        if fromFix then
+
+            pcall(ov.SetTextColor, ov, 1, 1, 1)
+        else
+
+            local okc, cr, cg, cb = pcall(orig.GetTextColor, orig)
+            if okc and type(cr) == "number" then
+                pcall(ov.SetTextColor, ov, cr, cg, cb)
+            else
+                pcall(ov.SetTextColor, ov, 1, 1, 1)
+            end
+        end
+
+        pcall(orig.SetAlpha, orig, 0)
+        pcall(orig.Hide, orig)
+        ov:Show()
+    else
+
+        pcall(orig.Show, orig)
+        pcall(orig.SetAlpha, orig, 1)
+        ov:Hide()
+    end
+end
+local function TranslateAuctionCats()
+    if not (db and db.ui) then return end
+    for i = 1, 60 do
+        local b = _G["AuctionFilterButton" .. i]
+        if b then pcall(CatOverlay, b) end
+    end
+end
+local function TranslateAuction()
+    TranslateAuctionRows()
+    if AES.catTrans ~= false then TranslateAuctionCats() end
+end
+AES.catTrans = true
+AES.TranslateAuction = TranslateAuction
+AES.TranslateAuctionRows = TranslateAuctionRows
+AES.TranslateAuctionCats = TranslateAuctionCats
+
+local auHooked = setmetatable({}, { __mode = "k" })
+local auInHook = false
+local function HookAuctionRow(n)
+    local fs = _G["BrowseButton" .. n .. "Name"]
+    if not fs or auHooked[fs] or not fs.SetText then return end
+    auHooked[fs] = true
+    hooksecurefunc(fs, "SetText", function(self)
+        if auInHook or not (db and db.items) then return end
+        local ok, t = pcall(self.GetText, self)
+        if not ok or type(t) ~= "string" or t == "" then return end
+        local es = AuctionRowES(n, t)
+        if es and es ~= t then
+            auInHook = true
+            pcall(self.SetText, self, es)
+            auInHook = false
+        end
+    end)
+end
+local function HookAuctionRows()
+    for i = 1, 20 do HookAuctionRow(i) end
+end
+
+local auFnHooked = false
+local function HookAuctionFuncs()
+    if auFnHooked then return end
+    auFnHooked = true
+    for _, fn in ipairs({ "AuctionFrameFilters_UpdateClasses", "AuctionFrameFilters_Update" }) do
+        if type(_G[fn]) == "function" then
+            hooksecurefunc(fn, function() if AES.catTrans then pcall(TranslateAuctionCats) end end)
+        end
+    end
+    if type(AuctionFrameBrowse_Update) == "function" then
+        hooksecurefunc("AuctionFrameBrowse_Update", function()
+            HookAuctionRows()
+            pcall(TranslateAuctionRows)
+        end)
+    end
+end
+AES.HookAuctionFuncs = HookAuctionFuncs
+
+local liveListWatcher = CreateFrame("Frame")
+liveListWatcher:RegisterEvent("TRADE_SKILL_SHOW")
+liveListWatcher:RegisterEvent("TRADE_SKILL_UPDATE")
+liveListWatcher:RegisterEvent("AUCTION_HOUSE_SHOW")
+liveListWatcher:RegisterEvent("AUCTION_ITEM_LIST_UPDATE")
+liveListWatcher:SetScript("OnEvent", function(_, event)
+    if not db then return end
+    if event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_UPDATE" then
+        if db.ui and TradeSkillFrame then pcall(WalkUIExact, TradeSkillFrame, 0, true) end
+    else
+        HookAuctionFuncs()
+
+        if event == "AUCTION_HOUSE_SHOW" and db.ui and AuctionFrame then
+            pcall(WalkUIExact, AuctionFrame, 0, true, SkipAuctionFilters)
+        end
+        HookAuctionRows()
+        pcall(TranslateAuction)
+    end
+end)
+
+local auCatTick, auCatAcc = CreateFrame("Frame"), 0
+auCatTick:SetScript("OnUpdate", function(_, dt)
+    if AES.catTrans == false or not (db and db.ui) then return end
+    local af = _G["AuctionFrame"]
+    local ok, vis = pcall(function() return af and af.IsVisible and af:IsVisible() end)
+    if not (ok and vis) then return end
+    auCatAcc = auCatAcc + dt
+    if auCatAcc < 0.1 then return end
+    auCatAcc = 0
+    pcall(TranslateAuctionCats)
+end)
 
 local plateElapsed = 0
 local plateScanner = CreateFrame("Frame")
@@ -2863,4 +3151,4 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         status(db.quests), status(db.gossip), status(db.achievements), status(db.ui)))
 end
 
-AscensionES.__firma = "AES/2026-07-31/6f00bd50aa6809c7/HideXs"
+AscensionES.__firma = "AES/2026-07-31/209351f932d70585/HideXs"
