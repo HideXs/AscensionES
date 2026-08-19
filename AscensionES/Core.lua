@@ -1299,10 +1299,20 @@ local function TranslateTrainerDetail()
 
     local descFS = ClassTrainerSkillDescription
     local dt = descFS and descFS:GetText()
-    if dt and #dt > 3 and enName and AES.NameToIDs[enName] then
-        for _, id in ipairs(AES.NameToIDs[enName]) do
-            if AES.DescByID[id] and TryPairSet(descFS, dt, AES.DescByID[id], AES.DescPairs) then
-                break
+    if dt and #dt > 12 then
+        local hecho = false
+        for cuantas = 8, 3, -1 do
+            local pref = PrefijoDe(dt, cuantas)
+            if #pref >= 8 then
+                local c = AES.DescByPrefix and AES.DescByPrefix[pref]
+                if c and TryPairSet(descFS, dt, c, AES.DescPairs) then hecho = true; break end
+            end
+        end
+        if not hecho and enName and AES.NameToIDs[enName] then
+            for _, id in ipairs(AES.NameToIDs[enName]) do
+                if AES.DescByID[id] and TryPairSet(descFS, dt, AES.DescByID[id], AES.DescPairs) then
+                    break
+                end
             end
         end
     end
@@ -3151,4 +3161,4 @@ SlashCmdList["ASCENSIONES"] = function(msg)
         status(db.quests), status(db.gossip), status(db.achievements), status(db.ui)))
 end
 
-AscensionES.__firma = "AES/2026-07-31/209351f932d70585/HideXs"
+AscensionES.__firma = "AES/2026-08-19/b4bee3ceeb77c2ec/HideXs"
